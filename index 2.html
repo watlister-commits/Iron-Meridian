@@ -1,0 +1,1738 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Iron Meridian</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap">
+<style>
+/* Layout: a war table. Map on the left under a sea-chart ground, command panel on the right; stacks on phones. */
+:root{
+  --bg:#e3e9ed; --panel:#f5f7f8; --ink:#14202a; --muted:#566772; --line:#c2cdd4; --sea:#d4e0e7;
+  --accent:#1d5f8f; --accent-ink:#ffffff; --danger:#b3392b; --ok:#2a7d52; --scrim:rgba(8,14,18,.62);
+  --p0:#2d69cf; --p1:#cc4a35; --p2:#2c915f; --p3:#9b6e12; --pn:#6e7780;
+  --fd:'Space Grotesk',system-ui,sans-serif; --fb:'Inter',system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0d1419; --panel:#162029; --ink:#e5ecf0; --muted:#94a5af; --line:#2a3944; --sea:#101b22;
+    --accent:#6db2e4; --accent-ink:#0a1217; --danger:#ef7a68; --ok:#58c48b;
+    --p0:#4f86ee; --p1:#e0624c; --p2:#3fae78; --p3:#c1902a; --pn:#9aa5ae; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0d1419; --panel:#162029; --ink:#e5ecf0; --muted:#94a5af; --line:#2a3944; --sea:#101b22;
+  --accent:#6db2e4; --accent-ink:#0a1217; --danger:#ef7a68; --ok:#58c48b;
+  --p0:#4f86ee; --p1:#e0624c; --p2:#3fae78; --p3:#c1902a; --pn:#9aa5ae; color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--fb);font-size:14px;line-height:1.45;
+  padding-block:14px 28px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:1280px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+.top{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 18px;justify-content:space-between}
+h1{font-family:var(--fd);font-size:26px;letter-spacing:.01em;margin:0;line-height:1.1}
+#turnbar{color:var(--muted);font-variant-numeric:tabular-nums}
+#turnbar b{color:var(--ink);font-weight:600}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 350px;gap:16px;align-items:start}
+@media (max-width:920px){.layout{grid-template-columns:minmax(0,1fr)}}
+.mapcol{min-width:0;display:flex;flex-direction:column;gap:10px}
+.mapscroll{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--sea)}
+svg#map{display:block;width:100%;min-width:760px;height:auto}
+svg text{font-family:var(--fb)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;color:var(--muted);font-size:13px}
+.legend span{display:inline-flex;align-items:center;gap:6px;min-width:0}
+.legend i{width:11px;height:11px;border-radius:3px;display:inline-block;flex:none}
+.legend em{font-style:normal;color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums}
+.panel{min-width:0;display:flex;flex-direction:column;gap:12px}
+.box{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px}
+h2{font-family:var(--fd);font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 0 8px;font-weight:700}
+ul.players{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.pl{display:grid;grid-template-columns:14px minmax(0,1fr);column-gap:10px;padding:6px 8px;border-radius:8px;border:1px solid transparent}
+.pl.active{border-color:var(--line);background:color-mix(in srgb,var(--accent) 10%,transparent)}
+.pl.dead{opacity:.45;text-decoration:line-through}
+.pl .sw{width:14px;height:14px;border-radius:50%;margin-top:3px}
+.pl .pn{font-weight:600}
+.pl .pm{grid-column:2;color:var(--muted);font-size:12.5px;font-variant-numeric:tabular-nums}
+.steps{display:flex;gap:6px;margin-bottom:10px}
+.steps div{flex:1;text-align:center;padding:5px 0;border-radius:7px;border:1px solid var(--line);color:var(--muted);font-size:12.5px;font-weight:600}
+.steps div.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+#hint{margin:0 0 10px;min-height:2.9em}
+#msg{margin:0 0 8px;color:var(--danger);font-weight:500;min-height:0}
+#msg:empty{display:none}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px}
+.btn{font:inherit;font-weight:600;border:1px solid var(--accent);background:var(--accent);color:var(--accent-ink);border-radius:8px;padding:7px 13px;cursor:pointer;min-height:36px}
+.btn.ghost{background:transparent;color:var(--ink);border-color:var(--line)}
+.btn.warn{background:var(--danger);border-color:var(--danger);color:#fff}
+.btn[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn:focus-visible,svg g[tabindex]:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.seg{display:inline-flex;gap:0}
+.seg .btn{border-radius:0;background:transparent;color:var(--ink);border-color:var(--line)}
+.seg .btn:first-child{border-radius:8px 0 0 8px}.seg .btn:last-child{border-radius:0 8px 8px 0}
+.seg .btn[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.sl{display:flex;flex-direction:column;gap:2px;margin-bottom:8px}
+.sl label{font-variant-numeric:tabular-nums}
+.dice{display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;font-variant-numeric:tabular-nums}
+.dice .grp{display:flex;gap:4px;align-items:center}
+.die{min-width:28px;padding:0 6px;height:28px;border-radius:6px;display:grid;place-items:center;font-weight:700;color:#fff;font-family:var(--fd);text-shadow:0 1px 2px rgba(0,0,0,.45)}
+.dice small{color:var(--muted)}
+.hand{display:flex;flex-wrap:wrap;gap:6px}
+.card{border:1px solid var(--line);border-radius:7px;padding:4px 8px;font-size:12.5px;background:var(--bg)}
+.card b{font-weight:600}
+.card.wild{border-color:var(--accent)}
+#log{list-style:none;margin:0;padding:0;max-height:210px;overflow-y:auto;display:flex;flex-direction:column;gap:3px;font-size:13px}
+#log li{display:grid;grid-template-columns:10px minmax(0,1fr);column-gap:8px;align-items:baseline}
+#log li i{width:8px;height:8px;border-radius:50%;display:inline-block}
+details{color:var(--muted);font-size:13px}
+details summary{cursor:pointer;font-weight:600;color:var(--ink)}
+details p{margin:6px 0 0}
+.overlay{position:fixed;inset:0;background:var(--scrim);display:grid;place-items:center;z-index:50;
+  padding:max(16px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) max(16px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+.overlay[hidden]{display:none}
+.logbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;color:var(--muted);font-size:13px}
+.logbar[hidden]{display:none}
+.logbar .btn{min-height:30px;padding:3px 10px;font-weight:500}
+.mtools{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:10px 0 8px}
+.mtools .btn{min-height:32px;padding:4px 11px;font-weight:500}
+.mlist{max-height:340px;overflow:auto;border:1px solid var(--line);border-radius:8px;background:var(--bg);font-size:12.5px}
+.mgh{position:sticky;top:0;display:flex;justify-content:space-between;align-items:center;gap:8px;padding:5px 8px;background:var(--panel);border-bottom:1px solid var(--line);font-weight:600}
+.ml{display:grid;grid-template-columns:18px minmax(0,1fr) auto;gap:8px;align-items:start;padding:4px 8px;border-bottom:1px solid var(--line)}
+.ml.sel{background:color-mix(in srgb,var(--accent) 14%,transparent)}
+.ml input{margin:2px 0 0}
+.ml .mt{min-width:0;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+.ml .mn{color:var(--muted)}
+.mini{font:inherit;font-size:12px;border:1px solid var(--line);background:transparent;color:var(--ink);border-radius:6px;padding:2px 8px;cursor:pointer}
+.mini:focus-visible{outline:3px solid var(--accent);outline-offset:1px}
+#manualTa{width:100%;font:12px/1.4 ui-monospace,Menlo,Consolas,monospace;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:8px}
+#mmsg{margin:6px 0 0;min-height:1.4em}
+.dlg{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:22px;max-width:520px;max-height:92vh;overflow:auto;width:100%;display:flex;flex-direction:column;gap:12px}
+.dlg h2{font-size:22px;letter-spacing:.01em;text-transform:none;color:var(--ink);margin:0}
+.dlg p{margin:0;color:var(--muted)}
+.sumt{width:100%;border-collapse:collapse;font-size:12.5px;font-variant-numeric:tabular-nums}.sumt th,.sumt td{padding:3px 6px;border-bottom:1px solid var(--line);text-align:right}.sumt th:first-child,.sumt td:first-child{text-align:left}
+.saved{max-height:240px;overflow:auto}.srow{display:flex;flex-wrap:wrap;gap:6px 10px;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--line)}.srow .row{margin:0}#savestat{font-size:12.5px}
+.ring-flash{animation:flash .9s ease-out 1}
+@keyframes flash{from{stroke-opacity:1;stroke-width:9}to{stroke-opacity:0;stroke-width:22}}
+@media (prefers-reduced-motion:reduce){.ring-flash{animation:none}}
+.seed{font:inherit;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);width:9em}
+#goal{margin:0 0 8px;font-size:12.5px;color:var(--muted)}
+.wrap.wide{max-width:none}
+.layout.nopanel{grid-template-columns:minmax(0,1fr)}.layout.nopanel .panel{display:none}
+.mapcol{position:relative}
+.mapscroll{overflow:auto;cursor:default}.mapscroll.pan{cursor:grab}.mapscroll.panning{cursor:grabbing;user-select:none}
+svg#map{margin:0 auto}
+.mapctl{position:absolute;top:8px;right:22px;display:flex;gap:4px;z-index:5;background:color-mix(in srgb,var(--panel) 88%,transparent);border:1px solid var(--line);border-radius:8px;padding:3px}
+.mapctl .mini{min-width:30px;min-height:28px}
+#ver{font:500 12px var(--fb);color:var(--muted);margin-left:6px;letter-spacing:0}
+#authOverlay{z-index:60}
+.mail{width:100%;font:inherit;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink)}
+#aMsg{min-height:1.4em}
+.dlg.wide{max-width:680px}.dlg details{border-top:1px solid var(--line);padding-top:8px}.dlg details p,.dlg details li{color:var(--ink)}.dlg ul{margin:6px 0 0;padding-left:18px}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <h1>Iron Meridian<span id="ver"></span></h1>
+    <div id="turnbar" aria-live="polite"></div><button class="btn ghost" id="manBtn" type="button">Field manual</button><button class="btn ghost" id="acctBtn" type="button">Guest</button>
+    <div class="logbar" id="logbar" hidden><span id="logstat" aria-live="polite"></span><button class="btn ghost" id="expJson" type="button">Export JSON</button><button class="btn ghost" id="expCsv" type="button">Export CSV</button><button class="btn ghost" id="expTxt" type="button">Export report</button><button class="btn" id="resBtn" type="button" hidden>Game results</button><button class="btn ghost" id="sqBtn" type="button" hidden>Save &amp; quit</button><button class="btn ghost" id="xlsxBtn" type="button">Export workbook (.xlsx)</button><span id="savestat" aria-live="polite"></span></div>
+  </header>
+  <div class="layout">
+    <section class="mapcol">
+      <div class="mapscroll"><svg id="map" viewBox="0 0 1000 600" role="group" aria-label="World map of 30 territories"></svg></div>
+      <div class="mapctl" id="mapctl"><button class="mini" id="zPanel" type="button" title="Hide or show the side panel (P)">Hide panel</button><button class="mini" id="zOut" type="button" aria-label="Zoom out" title="Zoom out (-)">&minus;</button><button class="mini" id="zFit" type="button" title="Fit the map to the screen (0)">Fit</button><button class="mini" id="zIn" type="button" aria-label="Zoom in" title="Zoom in (+)">+</button><button class="mini" id="zFull" type="button" title="Browser full screen (F)">&#x26F6;</button></div>
+      <div class="legend" id="legend"></div>
+    </section>
+    <aside class="panel">
+      <div class="box"><h2>Commanders</h2><p id="goal"></p><ul class="players" id="players"></ul></div>
+      <div class="box">
+        <div class="steps" id="steps"></div>
+        <p id="hint"></p>
+        <p id="msg" role="status"></p>
+        <div id="actions"></div>
+      </div>
+      <div class="box" id="diceBox" hidden><h2>Last battle</h2><div class="dice" id="dice"></div></div>
+      <div class="box"><h2>Your cards</h2><div class="hand" id="hand"></div></div>
+      <div class="box"><h2>War log</h2><ul id="log"></ul></div>
+      <div class="box" id="movesBox" hidden>
+        <details id="movesDetails">
+          <summary>Move log: view, copy or download every move</summary>
+          <div class="mtools">
+            <div class="seg" role="group" aria-label="Copy format">
+              <button class="btn" type="button" id="fmtText" aria-pressed="true">Text</button>
+              <button class="btn" type="button" id="fmtJson" aria-pressed="false">JSON</button>
+            </div>
+            <button class="btn" type="button" id="copyAll">Copy all</button>
+            <button class="btn ghost" type="button" id="copySel" disabled>Copy selected (0)</button>
+            <button class="btn ghost" type="button" id="clearSel" disabled>Clear</button>
+            <label><input type="checkbox" id="mineOnly"> My turns only</label>
+          </div>
+          <div class="mlist" id="mlist"></div>
+          <p id="mmsg" role="status"></p>
+          <div id="manual" hidden><textarea id="manualTa" rows="6" readonly aria-label="Text to copy by hand"></textarea></div>
+        </details>
+      </div>
+      <div class="box">
+        <details>
+          <summary>How to play</summary>
+          <p>Capture every territory to win, or hold your capital, the Meridian Mine and 60% of the map for two full rounds. Each turn: <b>reinforce</b> (troops = territories ÷ 3, minimum 3, plus continent bonuses, card sets and a +2 catch-up if you are last) on land connected to your capital, spend <b>coin</b> on quality (specialists, forts, cannon), <b>attack</b> (strength-based battles: each round both sides take losses, and a broken defender retreats), then one <b>fortify</b> move within range. Capture a territory to earn a card. Open the <b>Field manual</b> for every rule.</p>
+        </details>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="dlg" id="dlg"></div>
+</div>
+<div class="overlay" id="authOverlay" hidden>
+  <div class="dlg" id="authDlg" role="dialog" aria-modal="true" aria-label="Account"></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+/* Accounts. Guest mode always works: nothing in the game waits for this. Only the public (publishable) key lives here. */
+window.IMAuth=(()=>{
+'use strict';
+const VERSION='5.1.0';
+const SB_URL='https://zfqjdosisaomkrvahvtq.supabase.co';
+const SB_KEY='sb_publishable_o0ZcdQVGpNujT7uf6-0wmw_LQDGIR-V';
+const ready=/^https:\/\/[a-z0-9]+\.supabase\.co$/.test(SB_URL);
+const $=s=>document.querySelector(s);
+let sb=null,user=null,prof=null,down=false;
+const timeout=(p,ms)=>Promise.race([p,new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),ms))]);
+const DOWN='Can\'t reach the server right now (the free server may be asleep). You can keep playing as a guest and try again later.';
+
+function label(){
+  if(user) return ((prof&&prof.display_name)||'Commander')+(prof&&prof.role==='creator'?' ★ Creator':'');
+  return ready?'Guest · Sign in':'Guest';
+}
+function paint(){
+  const t=label(); document.querySelectorAll('#acctBtn,[data-acct]').forEach(b=>{ b.textContent=t; });
+}
+async function loadProfile(){
+  prof=null; if(!sb||!user) return;
+  try{
+    const r=await timeout(sb.from('profiles').select('display_name,role').eq('id',user.id).single(),8000);
+    if(r.data){ prof=r.data; down=false; } else if(r.error) down=true;
+  }catch(e){ down=true; }
+  paint(); if(!$('#authOverlay').hidden) openDlg();
+}
+function msg(t){ const m=$('#aMsg'); if(m) m.textContent=t; }
+
+function openDlg(){
+  const o=$('#authOverlay'), d=$('#authDlg'); o.hidden=false;
+  let h='<h2>Account</h2>';
+  if(!ready){
+    h+='<p>Accounts are not switched on in this version yet. You are playing as a guest and everything works as normal.</p>';
+  } else if(user){
+    h+='<p id="aEmail"></p><p id="aRole"></p><p>Name shown on your profile</p><div class="row"><input class="mail" id="aName" maxlength="30" aria-label="Display name" style="flex:1"><button class="btn" id="aSave" type="button">Save name</button></div><div class="row"><button class="btn ghost" id="aOut" type="button">Sign out</button></div>';
+  } else {
+    h+='<p>Playing as a guest works fully. Sign in to keep your record and game history on any device.</p><input class="mail" id="aMail" type="email" autocomplete="email" placeholder="you@example.com" aria-label="Email address"><div class="row"><button class="btn" id="aSend" type="button">Email me a sign-in link</button></div>';
+  }
+  h+='<p id="aMsg" role="status"></p><div class="row"><button class="btn ghost" id="aClose" type="button">'+(user?'Close':'Play as guest')+'</button></div><p><small>Version '+VERSION+'</small></p>';
+  d.innerHTML=h;
+  if(ready&&user){
+    $('#aEmail').textContent='Signed in as '+(user.email||'your account');
+    $('#aRole').textContent=prof&&prof.role==='creator'?'Role: creator ★':'';
+    $('#aName').value=(prof&&prof.display_name)||'';
+  }
+  if(down&&ready) msg(DOWN);
+}
+function closeDlg(){ $('#authOverlay').hidden=true; }
+
+async function sendLink(){
+  const em=(($('#aMail')||{}).value||'').trim();
+  if(!/^\S+@\S+\.\S+$/.test(em)) return msg('Please type a valid email address.');
+  msg('Sending...');
+  try{
+    const r=await timeout(sb.auth.signInWithOtp({email:em,options:{emailRedirectTo:location.origin+location.pathname}}),12000);
+    if(r.error) return msg(/rate|limit|seconds/i.test(r.error.message)?'Too many emails were sent. Wait a little and try again, or keep playing as a guest.':'Could not send the link: '+r.error.message);
+    down=false; msg('Check your email and click the link. It brings you back here, signed in.');
+  }catch(e){ down=true; msg(DOWN); }
+}
+async function saveName(){
+  const v=(($('#aName')||{}).value||'').trim();
+  if(!v||v.length>30) return msg('Name must be 1 to 30 characters.');
+  msg('Saving...');
+  try{
+    const r=await timeout(sb.from('profiles').update({display_name:v}).eq('id',user.id).select('display_name').single(),8000);
+    if(r.error) return msg('Could not save: '+r.error.message);
+    prof=Object.assign({},prof,r.data); paint(); msg('Saved.');
+  }catch(e){ down=true; msg(DOWN); }
+}
+async function signOut(){
+  try{ await timeout(sb.auth.signOut(),8000); }catch(e){}
+  user=null; prof=null; paint(); closeDlg();
+}
+
+function init(){
+  const v=$('#ver'); if(v) v.textContent='v'+VERSION;
+  paint();
+  $('#acctBtn').addEventListener('click',openDlg);
+  $('#authDlg').addEventListener('click',e=>{
+    const id=e.target.id;
+    if(id==='aClose') closeDlg(); else if(id==='aSend') sendLink(); else if(id==='aSave') saveName(); else if(id==='aOut') signOut();
+  });
+  document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&!$('#authOverlay').hidden) closeDlg(); });
+  if(!ready) return;
+  if(!window.supabase){ down=true; return; }
+  try{
+    sb=window.supabase.createClient(SB_URL,SB_KEY);
+    sb.auth.onAuthStateChange((ev,s)=>{
+      user=s?s.user:null;
+      if(user) setTimeout(loadProfile,0); else { prof=null; paint(); }
+    });
+  }catch(e){ down=true; }
+}
+if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',init); else init();
+return {version:VERSION,label,open:openDlg,user:()=>user,profile:()=>prof,client:()=>sb,ready};
+})();
+</script>
+<script>
+window.MoveRecorder=(()=>{
+const SCHEMA='iron-meridian-log/2';
+const RULES=['Version 3 rules. Setup is dealt from a seed: contiguous homelands, one capital per nation (2 Guards outside the specialist cap), a neutral Meridian Mine on the most central territory, random nation traits, 6 to 8 mountains and rich territories.','Reinforcements per turn = max(3, floor(territories/3)) + continent bonuses; card sets add troops (4,6,8,10,12,15 then +5). The nation with the fewest territories gets +2. Reinforcements and fortify moves only reach territories connected to the capital (lanes count while a Fleet sits on an endpoint).','Battle: each round attacker strength = (troops-1) x (1+bonus%), defender strength = troops x (1+bonus%); bonuses add and are capped at +60%. Each side takes max(1, round(10% of enemy strength x factor 0.8-1.2 from 2d6)). The attacker may stop after any round. A defender below 60% of its starting force breaks and retreats to an adjacent friendly territory if one exists; the attacker takes the territory and gets 1 or 2 pursuit kills.','Bonuses: mountain +25% defender (cancelled by Sappers in a stack of 4+), capital fortress +30%, fort +20%, veteran rank +10%/+20%, cavalry charge +25% attacker (first assault per turn, not into mountains, cancelled by defending cavalry), amphibious landing -15%, harbor defense +25%.','Guards absorb 2 casualties each per enemy turn; cannon Armor absorbs 4 per cannon; free absorption per territory per enemy turn is capped at 8.','Coin: rich territories, capital (2) and the Mine (5) pay each turn; kills pay half the victim value rounded up (1 or 2). Hoard cap 30. Coin buys specialist upgrades (Guard 2, others 4), forts 6, capital move 10, mercenaries 4 (max 2/turn), one cannon 20.','Cannons: 1 own plus 1 captured per nation, crew of 3, Round 0 salvo of about 4 casualties, Armor 4, captured by overrun plus capture of the territory.','Veterans: 2 wins = rank 1, 4 wins = rank 2; a rank is lost on retreat and a landing, and all rank is lost on capture.','Victory: conquer everything, or hold your capital, the Mine and 60% of territories at the end of 2 consecutive rounds.','Catch-up: the nation with the fewest territories gets +2 reinforcements. Losing a capital halves the next turn reinforcement and a new capital is named automatically.'];
+const GLOSS={n:'event number',turn:'turn counter (each player turn is one turn; game_start is turn 0)',round:'round (everyone has played once)',T:'territories held',A:'armies (troops) on the board',C:'cards in hand',atkLost:'troops the attacker lost this roll',defLost:'troops the defender lost this roll',standings:'tally of every player after the event'};
+let M=null,ev=[],games=0,subs=[],turn=0;
+const ping=()=>subs.forEach(f=>{try{f()}catch(e){}});
+const tn=id=>(M&&M.tn[id])||id,pn=id=>(M&&M.players[id])?M.players[id].name:String(id),L=a=>(a||[]).join(',');
+const st=t=>(t||[]).map(x=>`${x.alive?'':'(out) '}${pn(x.pid)} ${x.terr}T/${x.troops}A/${x.cards}C`).join('; ');
+function desc(e){const d=e.d;switch(e.type){
+case'game_start':return`Game start. Seed ${M.seed}, AI level ${M.level}, mountains: ${(M.mountains||[]).map(tn).join(', ')||'none'}, turn order: ${(d.order||[]).map(pn).join(' > ')}. Map: ${M.map}. Players: ${M.players.map(p=>p.name+(p.ai?(p.aggr?' (AI aggressive)':' (AI cautious)'):' (human)')).join(', ')}. Starting troops each: ${d.troopsEach}. Standings: ${st(e.tally)}.`;
+case'turn_start':return`Turn ${e.turn} begins. Reinforcements ${d.reinforce} = base ${d.base} + continent bonus ${d.continentBonus}${d.continents.length?' ('+d.continents.map(k=>M.cont[k].name).join(', ')+')':''}. Holds ${d.territories} territories, ${d.cards} cards${d.hand?' ['+d.hand+']':''}.`;
+case'trade':return`Traded card set [${L(d.cards)}] for ${d.value} troops (trade #${d.tradeNo}); pool now ${d.reinforceNow}.`;
+case'place':return`Placed ${d.qty} on ${tn(d.terr)} (now ${d.after}); ${d.left} left to place.`;
+case'phase':return`Phase change to ${d.to}.`;
+case'attack':return`ATTACK ${tn(d.from)} [${d.fromBefore}] -> ${tn(d.to)} [${d.toBefore}, held by ${pn(d.defender)}]. Strength attacker ${L(d.atkDice)} vs defender ${L(d.defDice)}. Attacker lost ${d.atkLost}, defender lost ${d.defLost}. After: ${d.fromTroops} vs ${d.toTroops}.${d.mods&&d.mods.length?' Modifiers: '+d.mods.join('; ')+'.':''}`;
+case'conquer':return`CAPTURED ${tn(d.to)} from ${pn(d.previousOwner)}; ${d.moved} troops moved in (${tn(d.from)} left with ${d.fromAfter}). ${pn(d.previousOwner)} has ${d.defenderTerritoriesLeft} territories left.`;
+case'move_in':return`Moved ${d.qty} extra troops ${tn(d.from)} (${d.fromAfter} left) -> ${tn(d.to)} (now ${d.toAfter}).`;
+case'fortify':return`Fortified ${d.qty} troops ${tn(d.from)} (${d.fromAfter} left) -> ${tn(d.to)} (now ${d.toAfter}).`;
+case'eliminated':return`${d.eliminatedName} ELIMINATED by ${e.player}; cards transferred.`;
+case'turn_end':return`Turn ${e.turn} ends. Captured a territory: ${d.conquered?'yes':'no'}; card drawn: ${d.drewCard?'yes':'no'}; cards held ${d.cards}${d.hand?' ['+d.hand+']':''}${d.setHeld?' (valid set held, not traded)':''}. Board: ${d.board||''} Standings: ${st(e.tally)}.`;
+case'game_end':return`GAME OVER. ${d.winnerName?'Winner: '+d.winnerName+'.':''}${d.humanEliminated?' Human eliminated.':''} Final standings: ${st(e.tally)}.`;
+case'upgrade':return`Upgraded a troop on ${tn(d.terr)} to ${d.kind} (cost ${d.cost}; now ${d.after} troops); ${d.left} left to place.`;
+case'volley':return`VOLLEY ${tn(d.from)} -> ${tn(d.to)} (held by ${pn(d.defender)}). Dice ${d.atkDie} vs ${d.defDie}. Killed ${d.killed}.${d.mods.length?' Modifiers: '+d.mods.join('; ')+'.':''} Target now ${d.toTroops}.`;
+default:return e.type+' '+JSON.stringify(d);}}
+function summary(){
+ if(!M)return null;
+ const P=M.players.map(p=>({pid:p.id,name:p.name,ai:p.ai,turns:0,rolls_as_attacker:0,troops_lost_attacking:0,troops_killed_attacking:0,rolls_as_defender:0,troops_lost_defending:0,troops_killed_defending:0,territories_captured:0,territories_lost:0,players_eliminated:0,troops_from_turn_reinforcements:0,troops_from_card_trades:0,card_trades:0,troops_placed:0,fortify_moves:0,troops_fortified:0,cards_drawn:0,exp_killed:0,exp_lost:0,peak_territories:0,peak_troops:0,final_territories:0,final_troops:0,final_cards:0,eliminated_on_turn:null}));
+ const T=[];let c=null;
+ ev.forEach(e=>{const d=e.d;
+  (e.tally||[]).forEach(x=>{const p=P[x.pid];p.peak_territories=Math.max(p.peak_territories,x.terr);p.peak_troops=Math.max(p.peak_troops,x.troops);p.final_territories=x.terr;p.final_troops=x.troops;p.final_cards=x.cards;});
+  if(e.type==='turn_start'){P[e.pid].turns++;P[e.pid].troops_from_turn_reinforcements+=d.reinforce;c={turn:e.turn,round:e.round,pid:e.pid,player:e.player,reinforcements:d.reinforce,rolls:0,troops_lost:0,troops_killed:0,captures:0};T.push(c);}
+  else if(e.type==='trade'){P[e.pid].card_trades++;P[e.pid].troops_from_card_trades+=d.value;}
+  else if(e.type==='place')P[e.pid].troops_placed+=d.qty;
+  else if(e.type==='attack'){const A=P[d.attacker],D=P[d.defender];A.rolls_as_attacker++;A.troops_lost_attacking+=d.atkLost;A.troops_killed_attacking+=d.defLost;D.rolls_as_defender++;D.troops_lost_defending+=d.defLost;D.troops_killed_defending+=d.atkLost;A.exp_killed+=d.expDef||0;A.exp_lost+=d.expAtk||0;D.exp_killed+=d.expAtk||0;D.exp_lost+=d.expDef||0;if(c){c.rolls++;c.troops_lost+=d.atkLost;c.troops_killed+=d.defLost;}}
+  else if(e.type==='volley'){const A=P[d.attacker],D=P[d.defender];A.troops_killed_attacking+=d.killed;D.troops_lost_defending+=d.killed;A.exp_killed+=d.exp||0;D.exp_lost+=d.exp||0;}
+  else if(e.type==='conquer'){P[d.attacker].territories_captured++;P[d.previousOwner].territories_lost++;if(c)c.captures++;}
+  else if(e.type==='eliminated'){P[e.pid].players_eliminated++;P[d.eliminated].eliminated_on_turn=e.turn;}
+  else if(e.type==='fortify'){P[e.pid].fortify_moves++;P[e.pid].troops_fortified+=d.qty;}
+  else if(e.type==='turn_end'){if(d.drewCard)P[e.pid].cards_drawn++;if(c){c.territories_end=(e.tally[e.pid]||{}).terr;c.troops_end=(e.tally[e.pid]||{}).troops;}}
+ });
+ P.forEach(p=>{const k=p.troops_killed_attacking+p.troops_killed_defending,l=p.troops_lost_attacking+p.troops_lost_defending;p.troops_killed_total=k;p.troops_lost_total=l;p.exp_killed=+p.exp_killed.toFixed(1);p.exp_lost=+p.exp_lost.toFixed(1);p.kill_luck=+(k-p.exp_killed).toFixed(1);p.loss_luck=+(l-p.exp_lost).toFixed(1);p.kill_loss_ratio=l?+(k/l).toFixed(2):null;});
+ return{players:P,turns:T};}
+const slim=e=>({n:e.n,turn:e.turn,round:e.round,player_id:e.pid,player:e.player,phase:e.phase,type:e.type,text:e.text,data:e.d,standings:e.tally});
+function full(){const s=summary(),g=ev[ev.length-1];return{schema:SCHEMA,how_to_read:GLOSS,game:{map:M.map,players:M.players,continents:M.cont,territories:M.territories,rules:RULES},result:g&&g.type==='game_end'?g.d:{note:'game not finished'},summary_per_player:s.players,summary_per_turn:s.turns,events:ev.map(slim)};}
+function fmt(es,f){return f==='json'?JSON.stringify(es.map(slim),null,1):es.map(e=>`#${e.n} | T${e.turn} R${e.round} | ${e.player} | ${e.type} | ${e.text}`).join('\n');}
+function report(){
+ const s=summary(),g=ev[ev.length-1];
+ const H=['player','turns','rolls A/D','lost atk','killed atk','lost def','killed def','killed total','lost total','K/L','kill luck vs expected','loss luck vs expected','captured','lost terr','elims','card trades','trade troops','placed','peak T','peak A','final T','final A'];
+ const rows=s.players.map(p=>[p.name,p.turns,p.rolls_as_attacker+'/'+p.rolls_as_defender,p.troops_lost_attacking,p.troops_killed_attacking,p.troops_lost_defending,p.troops_killed_defending,p.troops_killed_total,p.troops_lost_total,p.kill_loss_ratio,p.kill_luck,p.loss_luck,p.territories_captured,p.territories_lost,p.players_eliminated,p.card_trades,p.troops_from_card_trades,p.troops_placed,p.peak_territories,p.peak_troops,p.final_territories,p.final_troops].join(' | '));
+ return[`IRON MERIDIAN GAME LOG (${SCHEMA})`,`Seed: ${M.seed}  AI level: ${M.level}  Mountains: ${(M.mountains||[]).map(tn).join(', ')}`,`Map: ${M.map}`,`Players: ${M.players.map(p=>p.name+(p.ai?(p.aggr?' [AI aggressive]':' [AI cautious]'):' [human]')).join(', ')}`,`Result: ${g&&g.type==='game_end'?(g.d.winnerName?g.d.winnerName+' won':'human eliminated')+' after '+g.round+' rounds / '+g.turn+' turns':'game not finished'}`,'',
+ 'HOW TO READ: T=territories, A=armies/troops, C=cards. Attack lines give troops before the roll in [brackets] and after the roll at the end. "lost" = troops that side lost; "killed" = enemy troops that side destroyed.','',
+ 'RULES USED:',...RULES.map(r=>'- '+r),'','CONTINENTS (bonus, territories, entry points = border links to other continents):',...Object.values(M.cont).map(c=>`- ${c.name}: +${c.bonus}, ${c.size} territories, ${c.entries} entries`),'',
+ 'PLAYER SUMMARY:',H.join(' | '),...rows,'','PER-TURN SUMMARY (turn | round | player | reinforcements | rolls | troops lost | troops killed | captures | territories end | troops end):',...s.turns.map(t=>[t.turn,t.round,t.player,t.reinforcements,t.rolls,t.troops_lost,t.troops_killed,t.captures,t.territories_end,t.troops_end].join(' | ')),'','FULL EVENT LOG:',fmt(ev,'text')].join('\n');}
+function rowsArr(){
+ const H=['n','turn','round','player','phase','type','from','to','qty','defender','atk_dice','def_dice','atk_lost','def_lost','from_troops','to_troops','standings','text'];
+ return[H].concat(ev.map(e=>{const d=e.d;return[e.n,e.turn,e.round,e.player,e.phase,e.type,d.from!=null?tn(d.from):'',d.to!=null?tn(d.to):(d.terr!=null?tn(d.terr):''),d.qty??d.moved??d.value??'',d.defender!=null?pn(d.defender):(d.previousOwner!=null?pn(d.previousOwner):''),L(d.atkDice),L(d.defDice),d.atkLost??'',d.defLost??'',d.fromTroops??d.fromAfter??'',d.toTroops??d.toAfter??d.after??'',st(e.tally),e.text];}));}
+function csv(){const q=v=>{v=v==null?'':String(v);return/[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;};return rowsArr().map(r=>r.map(q).join(',')).join('\n');}
+function withDump(x,fn){const a=[M,ev,turn];try{M=x.M;turn=x.turn;ev=x.ev.map(e=>{const o=Object.assign({},e);o.text=desc(o);return o;});return fn();}finally{[M,ev,turn]=a;}}
+async function workbook(list){
+ const X=window.XLSX;if(!X)return{msg:'Spreadsheet library did not load here. Use the CSV export for each game instead.'};
+ if(!list.length)return{msg:'No saved games yet.'};
+ const idx=[['game','map','status','player','turns','rolls attacking','troops lost attacking','troops killed attacking','rolls defending','troops lost defending','troops killed defending','captured','territories lost','eliminations','card trades','troops from trades','troops placed','peak territories','peak troops','final territories','final troops','kill/loss ratio']];
+ const sheets=[];
+ list.forEach(g=>withDump(g.rec,()=>{
+  summary().players.forEach(p=>idx.push(['Game '+g.meta.n,g.meta.mapName,g.meta.status==='finished'?g.meta.result:'in progress',p.name,p.turns,p.rolls_as_attacker,p.troops_lost_attacking,p.troops_killed_attacking,p.rolls_as_defender,p.troops_lost_defending,p.troops_killed_defending,p.territories_captured,p.territories_lost,p.players_eliminated,p.card_trades,p.troops_from_card_trades,p.troops_placed,p.peak_territories,p.peak_troops,p.final_territories,p.final_troops,p.kill_loss_ratio]));
+  sheets.push([('G'+g.meta.n+' '+g.meta.mapName).replace(/[\[\]:*?\/\\]/g,'').slice(0,31),rowsArr()]);}));
+ const wb=X.utils.book_new(),wi=X.utils.aoa_to_sheet(idx);wi['!cols']=idx[0].map((h,i)=>({wch:i<4?18:14}));X.utils.book_append_sheet(wb,wi,'Index');
+ sheets.forEach(([nm,rows])=>{const ws=X.utils.aoa_to_sheet(rows);ws['!cols']=[5,6,6,16,10,14,14,14,6,16,10,10,9,9,10,10,46,90].map(w=>({wch:w}));X.utils.book_append_sheet(wb,ws,nm);});
+ const out=X.write(wb,{bookType:'xlsx',type:'array'}),ts=new Date().toISOString().slice(0,16).replace(/[-:T]/g,'');
+ return save(`iron-meridian-games-${ts}.xlsx`,new Uint8Array(out));}
+async function save(name,text){
+ try{if(window.claude&&claude.use){const d=await claude.use('downloads');if(d){await d.save({filename:name,data:text});return{msg:`Saved ${name}.`};}}}catch(e){if(e&&e.code==='declined')return{msg:'Download cancelled.'};}
+ try{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text]));a.download=name;document.body.appendChild(a);a.click();a.remove();return{msg:`Download started: ${name}. If no file appears, use Copy all in the move log.`};}catch(e){}
+ return{msg:'Download blocked here. Use Copy all in the move log.'};}
+return{
+ workbook,dump(){return{M,turn,ev:ev.map(e=>({n:e.n,turn:e.turn,round:e.round,pid:e.pid,player:e.player,phase:e.phase,type:e.type,d:e.d,tally:e.tally}))};},load(x){M=x.M;turn=x.turn;games++;ev=x.ev.map(e=>{e.text=desc(e);return e;});ping();},
+ init(){},onStatus(f){subs.push(f);},
+ info:()=>({moves:ev.length,mode:'autosaved in this browser',games}),
+ entries:()=>ev,format:fmt,summary,
+ start(meta){M=Object.assign({},meta,{tn:Object.fromEntries(meta.territories.map(t=>[t.id,t.name])),cont:meta.continents});ev=[];turn=0;games++;ping();},
+ log(type,data){if(!M)return;const{round,pid,player,phase,tally,...d}=data;if(type==='turn_start')turn++;const e={n:ev.length+1,turn,round,pid,player,phase,type,d,tally};e.text=desc(e);ev.push(e);ping();},
+ end(){ping();},
+ async download(f){if(!M||!ev.length)return{msg:'Nothing to export yet.'};const body=f==='json'?JSON.stringify(full(),null,1):f==='csv'?csv():report();const ts=new Date().toISOString().slice(0,16).replace(/[-:T]/g,'');return save(`iron-meridian-${M.mapKey}-${ts}.${f==='txt'?'txt':f}`,body);}
+};})();
+</script>
+
+<script>
+(() => {
+'use strict';
+
+let CONT,TER,EDGES,byId,HULLS,curMap,COAST=new Set(),LANES=[],LN={};
+const MAPS = {};
+MAPS.classic = {name:'Classic', short:'Classic', blurb:'Thirty territories, five continents of similar size. Balanced and familiar.', cont:{
+  F:{name:'Frostmark', bonus:4, col:'#5b86a8'},
+  E:{name:'Emberlands', bonus:3, col:'#c0714a'},
+  H:{name:'Heartland', bonus:5, col:'#7e9a52'},
+  S:{name:'Sunreach', bonus:4, col:'#c9a64a'},
+  W:{name:'Tidewater', bonus:4, col:'#3f9a9a'}
+}, ter:[
+  ['fm1','Icevale','F',90,80],['fm2','Wolfden','F',200,60],['fm3','Skarn','F',310,95],
+  ['fm4','Pale Coast','F',120,180],['fm5','Hollow Peak','F',235,170],['fm6','Greywater','F',340,200],
+  ['em1','Cinder','E',110,330],['em2','Ashfall','E',230,300],['em3','Kiln','E',85,440],
+  ['em4','Slag Flats','E',210,420],['em5','Magma Gate','E',150,535],
+  ['hl1','Crown','H',430,310],['hl2','Millrun','H',520,235],['hl3','Ford','H',525,345],
+  ['hl4','Abbey','H',620,290],['hl5','Granary','H',430,420],['hl6','Vale','H',545,455],['hl7','Tollgate','H',650,400],
+  ['sr1','Amber','S',480,110],['sr2','Dunemark','S',590,95],['sr3','Oasis','S',700,120],
+  ['sr4','Saltway','S',810,85],['sr5','Mirage','S',690,215],['sr6','Sundial','S',815,195],
+  ['td1','Brinehold','W',780,310],['td2','Kelpmouth','W',900,290],['td3','Reef','W',745,425],
+  ['td4','Stormquay','W',860,420],['td5','Driftwood','W',790,535],['td6','Pearl Bay','W',915,525]
+], edges:[
+  'fm1-fm2','fm2-fm3','fm1-fm4','fm2-fm5','fm3-fm6','fm4-fm5','fm5-fm6','fm3-fm5',
+  'em1-em2','em1-em3','em2-em4','em3-em4','em4-em5','em3-em5','em1-em4',
+  'hl1-hl2','hl1-hl3','hl2-hl3','hl2-hl4','hl3-hl4','hl3-hl5','hl3-hl6','hl5-hl6','hl6-hl7','hl4-hl7','hl1-hl5',
+  'sr1-sr2','sr2-sr3','sr3-sr4','sr3-sr5','sr5-sr6','sr4-sr6','sr2-sr5','sr3-sr6',
+  'td1-td2','td1-td3','td1-td4','td2-td4','td3-td4','td3-td5','td4-td5','td4-td6','td5-td6',
+  'fm4-em1','fm5-em2','fm6-hl1','em2-hl1','em4-hl5','fm3-sr1','sr1-hl2','sr5-hl4','td1-hl4','td3-hl7','sr6-td2','sr6-td1'
+]};
+MAPS.fractured = {name:'Fractured Seas', short:'Fractured Seas', blurb:'34 territories, six continents of very different size. Tiny Citadel has one entrance and a small bonus; sprawling Greatplains has five entrances and is hard to hold; Spine and Dunes are narrow two-door corridors.',
+ cont:{C:{name:'Citadel',bonus:2,col:'#8a6bb0'},G:{name:'Greatplains',bonus:5,col:'#7e9a52'},P:{name:'Spine',bonus:4,col:'#b0705a'},D:{name:'Dunes',bonus:3,col:'#c9a64a'},L:{name:'Highlands',bonus:4,col:'#5b86a8'},I:{name:'Isles',bonus:3,col:'#3f9a9a'}},
+ ter:[['ci1','Keep','C',90,90],['ci2','Moat','C',190,70],['ci3','Gatehouse','C',120,185],
+ ['gp1','Ridgeway','G',130,300],['gp2','Cornfield','G',240,250],['gp3','Meadow','G',240,360],['gp4','Riverbend','G',350,300],['gp5','Hayfield','G',150,430],['gp6','Marketown','G',260,470],['gp7','Barrow','G',360,420],['gp8','Windmill','G',350,190],['gp9','Crossing','G',450,320],
+ ['sp1','Northpass','P',470,90],['sp2','Ironcrag','P',570,60],['sp3','Stonefall','P',560,170],['sp4','Eagles Nest','P',660,100],['sp5','Deepmine','P',670,200],['sp6','Cragmouth','P',770,150],
+ ['du1','Mirage','D',890,80],['du2','Scorch','D',940,200],['du3','Cairn','D',820,230],['du4','Wadi','D',900,320],['du5','Saltpan','D',800,350],
+ ['hl1','Tarn','L',550,330],['hl2','Cairnwatch','L',650,310],['hl3','Bracken','L',560,430],['hl4','Heathfall','L',720,390],['hl5','Thistle','L',640,500],['hl6','Fogmoor','L',760,500],['hl7','Peakhold','L',850,450],
+ ['is1','Shoal','I',250,550],['is2','Gull Rock','I',360,530],['is3','Pier','I',470,520],['is4','Lighthouse','I',480,430]],
+ edges:['ci1-ci2','ci1-ci3','ci2-ci3','gp1-gp2','gp1-gp3','gp2-gp3','gp2-gp4','gp3-gp4','gp3-gp5','gp3-gp6','gp5-gp6','gp6-gp7','gp4-gp7','gp4-gp9','gp7-gp9','gp2-gp8','gp8-gp4','gp1-gp5',
+ 'sp1-sp2','sp1-sp3','sp2-sp3','sp2-sp4','sp3-sp4','sp3-sp5','sp4-sp5','sp4-sp6','sp5-sp6','du1-du2','du1-du3','du2-du3','du2-du4','du3-du4','du3-du5','du4-du5',
+ 'hl1-hl2','hl1-hl3','hl2-hl3','hl2-hl4','hl3-hl5','hl4-hl5','hl4-hl6','hl5-hl6','hl6-hl7','hl4-hl7','is1-is2','is2-is3','is3-is4','is2-is4',
+ 'ci3-gp1','gp8-sp1','sp6-du1','gp9-hl1','du5-hl4','gp6-is1','gp7-is2','is3-hl5']};
+MAPS.classic.coast = ['fm1','fm2','fm3','fm4','em1','em3','em5','em4','sr1','sr2','sr3','sr4','sr6','td2','td4','td6','td5','hl6'];
+MAPS.classic.lanes = [['fm2','sr2'],['em5','hl6'],['em5','td5']];
+MAPS.fractured.coast = ['ci1','ci2','ci3','gp1','gp5','sp1','sp2','sp4','sp6','du1','du2','du4','hl5','hl6','hl7','is1','is2','is3','is4'];
+MAPS.fractured.lanes = [['ci2','sp2'],['ci1','is1'],['is3','hl7']];
+MAPS.grand = {name:'Grand Campaign', short:'Grand', big:true, vb:[1500,940], blurb:'64 territories, nine continents. Citadel is a tiny fortress with two doors, Heartland is a huge prize with seven entrances, and six sea lanes link the coasts. Games run long: start with 2 or 3 opponents.',
+ cont:{F:{name:'Frostmark',bonus:4,col:'#5b86a8'},S:{name:'Sunreach',bonus:4,col:'#c9a64a'},D:{name:'Dragonspine',bonus:5,col:'#b0705a'},W:{name:'Westmarch',bonus:4,col:'#7a6bb0'},H:{name:'Heartland',bonus:6,col:'#7e9a52'},E:{name:'Eastreach',bonus:4,col:'#3f9a9a'},C:{name:'Citadel',bonus:2,col:'#8a6bb0'},M:{name:'Marches',bonus:4,col:'#9a8a5a'},I:{name:'Isles',bonus:3,col:'#4a9ac0'}},
+ ter:[['f1','Icevale','F',228,171],['f2','Wolfden','F',380,103],['f3','Skarn','F',130,205],['f4','Pale Coast','F',359,243],['f5','Hollow Peak','F',268,73],['f6','Greywater','F',155,101],['f7','Rimehold','F',257,269],['s1','Amber','S',763,189],['s2','Dunemark','S',648,225],['s3','Oasis','S',894,124],['s4','Saltway','S',780,68],['s5','Mirage','S',634,90],['s6','Sundial','S',857,230],['s7','Gilded Ford','S',561,169],['d1','Ashgate','D',1232,163],['d2','Cinder','D',1213,268],['d3','Kiln','D',1287,78],['d4','Slag Flats','D',1116,195],['d5','Magma Gate','D',1146,97],['d6','Ember Pass','D',1326,221],['d7','Forge','D',1374,128],['w1','Thornwood','W',140,550],['w2','Lindenfall','W',316,480],['w3','Harrow','W',167,379],['w4','Moss Keep','W',319,371],['w5','Fenwick','W',270,576],['w6','Oakmere','W',94,459],['w7','Bramble','W',215,469],['h1','Crown','H',851,534],['h2','Millrun','H',743,372],['h3','Ford','H',673,517],['h4','Abbey','H',639,378],['h5','Granary','H',865,405],['h6','Vale','H',565,491],['h7','Tollgate','H',774,468],['h8','Orchard','H',750,583],['h9','Highmarket','H',936,477],['e1','Brinehold','E',1127,411],['e2','Kelpmouth','E',1329,501],['e3','Reef','E',1211,572],['e4','Stormquay','E',1211,464],['e5','Driftwood','E',1335,384],['e6','Pearl Bay','E',1233,365],['e7','Tidegate','E',1089,504],['c1','Keep','C',287,811],['c2','Moat','C',365,742],['c3','Gatehouse','C',185,725],['c4','Bastion','C',277,694],['c5','Barbican','C',187,827],['m1','Barrow','M',733,773],['m2','Windmill','M',881,836],['m3','Crossing','M',659,698],['m4','Marketown','M',579,777],['m5','Riverbend','M',829,711],['m6','Hayfield','M',661,853],['m7','Meadow','M',774,865],['m8','Stonebridge','M',924,743],['i1','Shoal','I',1185,774],['i2','Gull Rock','I',1385,747],['i3','Pier','I',1272,705],['i4','Lighthouse','I',1238,861],['i5','Wavecrest','I',1080,738],['i6','Sandspit','I',1105,838],['i7','Kestrel Cay','I',1341,837]],
+ edges:['c1-c2','c1-c3','c1-c4','c1-c5','c2-c4','c2-m4','c3-c4','c3-c5','d1-d2','d1-d3','d1-d4','d1-d5','d1-d6','d2-d4','d2-d6','d2-e6','d3-d5','d3-d7','d4-d5','d6-d7','d6-e5','e1-e4','e1-e6','e1-e7','e2-e3','e2-e4','e2-e5','e3-e4','e3-e7','e3-i3','e4-e6','e4-e7','e5-e6','e7-i5','f1-f3','f1-f4','f1-f5','f1-f6','f1-f7','f2-f4','f2-f5','f2-s7','f3-f6','f3-f7','f3-w3','f4-f7','f5-f6','f7-w4','h1-h5','h1-h7','h1-h8','h1-h9','h1-m5','h2-h4','h2-h5','h2-h7','h3-h4','h3-h6','h3-h7','h3-h8','h4-h6','h5-h7','h5-h9','h7-h8','h8-m3','h9-e7','i1-i3','i1-i4','i1-i5','i1-i6','i2-i3','i2-i7','i3-i4','i3-i7','i4-i6','i4-i7','i5-i6','m1-m2','m1-m3','m1-m4','m1-m5','m1-m6','m1-m7','m2-i6','m2-m5','m2-m7','m2-m8','m3-m4','m4-m6','m5-m8','m6-m7','m8-i5','s1-h2','s1-s2','s1-s3','s1-s4','s1-s5','s1-s6','s2-h4','s2-s5','s2-s7','s3-d4','s3-s4','s3-s6','s4-s5','s5-s7','s6-h5','w1-w5','w1-w6','w1-w7','w2-h6','w2-w4','w2-w5','w2-w7','w3-w6','w3-w7','w4-w7','w5-c4','w5-w7','w6-w7'],
+ coast:['c1','c2','c3','c4','c5','d3','d5','d7','e2','e5','f2','f3','f5','f6','h2','h8','i1','i2','i3','i4','i5','i6','i7','m2','m6','m7','s3','s4','s5','w1','w6'], lanes:[['f2','d5'],['w1','c3'],['e2','i3'],['c2','i5'],['f3','w6'],['d7','e5']]};
+function loadMap(key){
+  const m = MAPS[key] || MAPS.classic; curMap = MAPS[key] ? key : 'classic';
+  CONT = m.cont; TER = m.ter.map(([id,name,c,x,y]) => ({id,name,c,x,y,adj:[]})); EDGES = m.edges;
+  byId = Object.fromEntries(TER.map(t => [t.id, t]));
+  EDGES.forEach(e => { const [a,b] = e.split('-'); byId[a].adj.push(b); byId[b].adj.push(a); });
+  for (const k in CONT){
+    CONT[k].size = TER.filter(t => t.c===k).length;
+    CONT[k].entries = EDGES.filter(e => { const [a,b] = e.split('-'); return (byId[a].c===k) !== (byId[b].c===k); }).length;
+  }
+  HULLS = Object.keys(CONT).map(k => ({k, pts: hull(TER.filter(t=>t.c===k).map(t=>[t.x,t.y])).map(p=>p.join(',')).join(' ')}));
+  COAST = new Set(m.coast || []); LANES = m.lanes || []; LN = {};
+  LANES.forEach(([a,b]) => { (LN[a] = LN[a] || []).push(b); (LN[b] = LN[b] || []).push(a); });
+}
+loadMap('classic');
+const KINDS = ['Infantry','Cavalry','Artillery','Wild'];
+const NAMES = ['You','Marshal Voss','Duchess Ilka','Warden Tor'];
+const AGGR = [false,true,false,true];
+
+const $ = s => document.querySelector(s);
+const rnd = n => Math.floor(Math.random()*n);
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+function shuffle(a, f){ f = f || Math.random; for(let i=a.length-1;i>0;i--){ const j=Math.floor(f()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
+
+/* ---------- new rules: helpers ---------- */
+const SP = [{k:'gd',n:'Guard',s:'G',cost:2},{k:'cv',n:'Cavalry',s:'C',cost:4},{k:'ar',n:'Sappers',s:'S',cost:4},{k:'ac',n:'Archers',s:'R',cost:4},{k:'fl',n:'Fleet',s:'F',cost:4}];
+const spAll = t => (t.gd|0)+(t.cv|0)+(t.ar|0)+(t.ac|0)+(t.fl|0);
+const spN = t => spAll(t) - Math.min(t.cg|0, t.gd|0);
+const avail = (t,k) => k==='gd' ? Math.max(0,(t.gd|0)-(t.cg|0)) : (t[k]|0);
+const rankOf = t => { const w = t.w|0; return w>=4 ? 2 : w>=2 ? 1 : 0; };
+const dropRank = t => { const r = rankOf(t); if (r>0) t.w = (r-1)*2; };
+const hasS = (pid,k) => { const p = S && S.p[pid]; return !!(p && p.trait && p.trait.s===k); };
+const hasW = (pid,k) => { const p = S && S.p[pid]; return !!(p && p.trait && p.trait.w===k); };
+const pname = o => (S && S.p[o]) ? S.p[o].name : '?';
+const pc = o => (S && S.p[o] && S.p[o].neutral) ? 'var(--pn)' : `var(--p${o})`;
+const laneNb = id => LN[id] || [];
+const specCost = (pid,k) => SP.find(x => x.k===k).cost - (k==='gd' && hasS(pid,'bulwark') ? 1 : 0);
+const fortRange = pid => hasS(pid,'strider') ? 5 : hasW(pid,'slow') ? 2 : 3;
+const fac = () => 0.8 + ((1+rnd(6)) + (1+rnd(6)) - 2) * 0.04;
+const TRAITS = {
+  S:{levy:{n:'Levy',ax:'troops',d:'+4 starting troops and a base reinforcement floor of 4'},bulwark:{n:'Bulwark',ax:'defense',d:'capital fortress +45% instead of +30%, Guards cost 1 less coin'},highlander:{n:'Highlander',ax:'terrain',d:'defends mountains at +40% instead of +25%, 2 extra mountains in its homeland'},strider:{n:'Strider',ax:'mobility',d:'fortify range 5 and archer volleys reach 3 links'}},
+  W:{conscripts:{n:'Conscripts',ax:'troops',d:'starts with 3 fewer troops'},open:{n:'Open Capital',ax:'defense',d:'capital starts with 1 Guard instead of 2'},lowlander:{n:'Lowlander',ax:'terrain',d:'attacks into mountains at -10%'},slow:{n:'Slow Roads',ax:'mobility',d:'fortify range 2'}}
+};
+function drawTraits(R, np){
+  const SK = Object.keys(TRAITS.S), WK = Object.keys(TRAITS.W);
+  for (let t=0;t<500;t++){
+    const ss = shuffle(SK.slice(), R), ws = shuffle(WK.slice(), R); let ok = true; const out = [];
+    for (let i=0;i<np;i++){ out.push({s:ss[i], w:ws[i]}); if (TRAITS.S[ss[i]].ax === TRAITS.W[ws[i]].ax) ok = false; }
+    if (ok) return out;
+  }
+  return SK.slice(0,np).map((s,i) => ({s, w:WK[(i+1)%WK.length]}));
+}
+const sg = v => v==null ? '' : (v>0?'+':'')+v;
+function mkRng(seed){ let h=1779033703^seed.length; for(let i=0;i<seed.length;i++){ h=Math.imul(h^seed.charCodeAt(i),3432918353); h=h<<13|h>>>19; } let a=h>>>0;
+  return () => { a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+const mtnPool = () => TER.filter(t => t.adj.some(n => byId[n].c !== t.c)).map(t => t.id);
+const isMtn = id => !!(S && S.mtn && S.mtn.includes(id));
+function within2(id, pid){
+  const o = pid != null ? pid : (S && S.t[id] ? S.t[id].o : null), r = hasS(o,'strider') ? 3 : 2; const seen = new Set([id]); let fr = [id];
+  for (let k=0;k<r;k++){ const nx = []; fr.forEach(c => byId[c].adj.forEach(n => { if (!seen.has(n)){ seen.add(n); nx.push(n); } })); fr = nx; }
+  seen.delete(id); return seen;
+}
+function fleetTargets(id){
+  const o = S.t[id].o, r = new Set(); if (!COAST.has(id)) return r;
+  byId[id].adj.forEach(n => { if (COAST.has(n)) r.add(n); }); laneNb(id).forEach(n => { if (COAST.has(n)) r.add(n); });
+  [...r].forEach(n => { if (S.t[n].o === o) r.delete(n); }); return r;
+}
+function canVolley(from, to){ const f = S.t[from]; if (!f || f.o === S.t[to].o) return false; return (f.ac>0 && !S.fired[from] && within2(from).has(to)) || (f.fl>0 && !S.firedF[from] && fleetTargets(from).has(to)); }
+function canHit(from, to){ const f = S.t[from]; if (!f || f.o === S.t[to].o) return false; if (byId[from].adj.includes(to)) return true; return f.fl>0 && laneNb(from).includes(to) && !isMtn(to) && COAST.has(from) && COAST.has(to); }
+function meleeTargets(id){ const o = S.t[id].o, r = byId[id].adj.filter(n => S.t[n].o !== o); if (S.t[id].fl>0 && COAST.has(id)) laneNb(id).forEach(n => { if (S.t[n].o !== o && !isMtn(n) && COAST.has(n)) r.push(n); }); return r; }
+function trim(t){ while (spN(t) > t.a){ let done = false; for (const k of ['cv','ac','fl','ar','gd']){ if (t[k]>0 && !(k==='gd' && t.gd <= (t.cg|0))){ t[k]--; done = true; break; } } if (!done) break; } }
+function moveTags(f, d, sel, did){
+  const okTag = k => k !== 'fl' || !did || COAST.has(did);
+  for (const x of SP) for (let i=0; i<(sel ? (sel[x.k]|0) : 0) && avail(f,x.k)>0 && okTag(x.k); i++){ if (spN(d) >= Math.ceil(d.a/5)) break; f[x.k]--; d[x.k] = (d[x.k]|0)+1; }
+  for (const k of ['ar','gd','cv','ac','fl']) while (spN(f) > f.a && avail(f,k) > 0 && okTag(k)){ f[k]--; d[k] = (d[k]|0)+1; }
+  trim(d);
+}
+function mergeRank(f, d, m){ if (m > f.a) d.w = Math.max(d.w|0, f.w|0); }
+function moveCannons(f, d){ f.cn = f.cn || []; d.cn = d.cn || []; let n = 0; for (let i=0;i<f.cn.length && d.cn.length<2;){ if (f.cn[i].mv){ i++; continue; } const c = f.cn.splice(i,1)[0]; c.mv = true; d.cn.push(c); n++; } return n; }
+const EXP = {};
+function expLoss(ad, dd, m, c, tie){
+  const key = [ad,dd,m,c,tie].join(); if (EXP[key]) return EXP[key];
+  const tot = Math.pow(6, ad+dd); let ea = 0, ed = 0;
+  for (let i=0;i<tot;i++){
+    let x = i; const a = [], d = [];
+    for (let j=0;j<ad;j++){ a.push(x%6+1); x = Math.floor(x/6); } for (let j=0;j<dd;j++){ d.push(x%6+1); x = Math.floor(x/6); }
+    a.sort((p,q)=>q-p); d.sort((p,q)=>q-p); if (c) a[0] = Math.min(6,a[0]+1); if (m) d[0] = Math.min(6,d[0]+1);
+    for (let j=0;j<Math.min(ad,dd);j++){ if (a[j]>d[j] || (tie && a[j]===d[j])) ed++; else ea++; }
+  }
+  return EXP[key] = [ea/tot, ed/tot];
+}
+function hull(pts){
+  pts = pts.slice().sort((a,b)=>a[0]-b[0]||a[1]-b[1]);
+  const cr=(o,a,b)=>(a[0]-o[0])*(b[1]-o[1])-(a[1]-o[1])*(b[0]-o[0]);
+  const lo=[]; for(const p of pts){ while(lo.length>=2&&cr(lo[lo.length-2],lo[lo.length-1],p)<=0) lo.pop(); lo.push(p); }
+  const up=[]; for(const p of pts.slice().reverse()){ while(up.length>=2&&cr(up[up.length-2],up[up.length-1],p)<=0) up.pop(); up.push(p); }
+  up.pop(); lo.pop(); return lo.concat(up);
+}
+
+let S = null;
+const UI = {winMode:'majority', zoom:1, panelHidden:false, mapKey:'classic', sel:null, tgt:null, place:1, extra:0, fSel:null, fTo:null, fAmt:1, msg:'', mode:'troop', mv:{}, level:'normal', seedIn:'', cn:false};
+
+/* ---------- state helpers ---------- */
+const owned = pid => TER.filter(t => S.t[t.id].o === pid);
+function contBonus(pid){
+  let b = 0;
+  for (const k in CONT) if (TER.filter(t=>t.c===k).every(t => S.t[t.id].o === pid)) b += CONT[k].bonus;
+  return b;
+}
+function isLowest(pid){
+  const al = S.p.filter(p => !p.neutral && p.alive); if (al.length < 3) return false;
+  const key = p => owned(p.id).length*10000 + owned(p.id).reduce((a,t) => a + S.t[t.id].a, 0), me = key(S.p[pid]);
+  return al.every(p => p.id===pid || key(p) > me);
+}
+const calcReinforce = (pid, lost) => { let b = Math.max(hasS(pid,'levy') ? 4 : 3, Math.floor(owned(pid).length/3)) + contBonus(pid); if (isLowest(pid)) b += 2; if (lost) b = Math.ceil(b/2); return b; };
+function incomeFor(pid){ let rich = 0; owned(pid).forEach(t => { rich += S.rich[t.id]|0; }); const cap = S.p[pid].capital != null ? 2 : 0, mn = (S.mine != null && S.t[S.mine].o === pid) ? 5 : 0; return {rich, cap, mine:mn, total:rich+cap+mn}; }
+function designateCapital(pid){
+  const ts = owned(pid); if (!ts.length) return; let best = ts[0]; ts.forEach(t => { if (S.t[t.id].a > S.t[best.id].a) best = t; });
+  const p = S.p[pid]; p.capital = best.id; S.t[best.id].cap = 1; S.t[best.id].cg = 0; log(`${p.name} names ${best.name} its new capital`, pid); rec('capital_relocated', {terr:best.id, auto:true});
+}
+const cannonCount = (pid, ownPool) => { let n = 0; TER.forEach(t => { const x = S.t[t.id]; if (x.o !== pid) return; (x.cn||[]).forEach(c => { if ((c.b === pid) === ownPool) n++; }); }); return n; };
+const hasEnemyNeighbor = (id, pid) => byId[id].adj.some(n => S.t[n].o !== pid);
+function reachInfo(id, pid, max){
+  const rng = max == null ? fortRange(pid) : max, info = new Map([[id, {d:0, cap:1e9}]]), q = [id];
+  while (q.length){
+    const c = q.shift(), ci = info.get(c); if (ci.d >= rng) continue;
+    const nbs = byId[c].adj.map(n => [n,false]); laneNb(c).forEach(n => { if (S.t[c].fl>0 || S.t[n].fl>0) nbs.push([n,true]); });
+    for (const [n, lane] of nbs){
+      if (S.t[n].o !== pid) continue;
+      const cap = lane ? Math.min(ci.cap, 5*((S.t[c].fl|0)+(S.t[n].fl|0))) : ci.cap, ex = info.get(n);
+      if (!ex){ info.set(n, {d:ci.d+1, cap}); q.push(n); } else if (ex.d === ci.d+1 && cap > ex.cap) ex.cap = cap;
+    }
+  }
+  info.delete(id); return info;
+}
+const reachable = (id, pid, max) => new Set(reachInfo(id, pid, max).keys());
+function supplied(pid){
+  const p = S.p[pid], out = new Set(); if (!p || p.capital == null || S.t[p.capital].o !== pid) return out;
+  const q = [p.capital]; out.add(p.capital);
+  while (q.length){
+    const c = q.shift(), nb = byId[c].adj.slice(); laneNb(c).forEach(n => { if (S.t[c].fl>0 || S.t[n].fl>0) nb.push(n); });
+    for (const n of nb) if (!out.has(n) && S.t[n].o === pid){ out.add(n); q.push(n); }
+  }
+  return out;
+}
+function landDist(a, b, pid){
+  const seen = new Map([[a,0]]), q = [a];
+  while (q.length){ const c = q.shift(); for (const n of byId[c].adj) if (!seen.has(n) && S.t[n].o === pid){ seen.set(n, seen.get(c)+1); q.push(n); } }
+  return seen.has(b) ? seen.get(b) : 99;
+}
+function log(msg, pid){ S.log.push({msg, pid: pid==null ? -1 : pid}); if (S.log.length>200) S.log.shift(); }
+const snap = () => TER.map(t => { const x = S.t[t.id]; const tg = SP.map(y => x[y.k] ? y.s+x[y.k] : '').join('') + (x.cn && x.cn.length ? 'K'+x.cn.length : '') + (x.cap ? '*' : '') + (x.fort ? 'f' : '') + (x.w ? 'v'+x.w : ''); return `${t.id}:${x.o}:${x.a}` + (tg ? '[' + tg + ']' : ''); }).join(' ');
+function rec(type, d){
+  try {
+    if (!window.MoveRecorder || !S) return;
+    window.MoveRecorder.log(type, Object.assign({round:S.round, pid:S.cur, player:S.p[S.cur] && S.p[S.cur].name, phase:S.phase, tally:S.p.map(q => ({pid:q.id, terr:owned(q.id).length, troops:owned(q.id).reduce((a,t)=>a+S.t[t.id].a,0), cards:q.hand.length, alive:q.alive}))}, d || {}));
+  } catch (e) {}
+}
+function checkWin(){
+  const alive = S.p.filter(p => !p.neutral && p.alive);
+  if (alive.length === 1){ S.winner = alive[0].id; log(`${alive[0].name} conquered the world`, S.winner); return true; }
+  if (S.winMode === 'capitals' && S.caps0 && S.caps0.length){
+    for (const p of alive){ if (S.caps0.every(c => S.t[c].o === p.id)){ S.winner = p.id; S.altWin = true; log(`${p.name} holds every starting capital`, p.id); return true; } }
+  }
+  return false;
+}
+function winShort(){ return !S.altWin ? 'rules the world' : S.winMode==='majority' ? 'wins by majority conquest' : S.winMode==='capitals' ? 'wins by taking every capital' : 'wins by control'; }
+function winLong(){ return S.winMode==='majority' ? 'Victory by holding 70% of the map' : S.winMode==='capitals' ? 'Victory by conquering every capital' : 'Victory by holding your capital, the Mine and 60% of the map'; }
+function goalText(){
+  if (!S) return '';
+  const live = S.p.filter(q => !q.neutral && q.alive), mode = S.winMode || 'control', n = TER.length;
+  const top = f => { let b = null, bv = -1; live.forEach(q => { const v = f(q); if (v > bv){ bv = v; b = q; } }); return [b, bv]; };
+  if (mode === 'majority'){ const need = Math.ceil(0.7*n), [b, v] = top(q => owned(q.id).length); return b ? `Goal: hold ${need} of ${n} territories (70%) when a round ends. Closest: ${b.name}, ${v}.` : ''; }
+  if (mode === 'capitals'){ const [b, v] = top(q => S.caps0.filter(c => S.t[c].o === q.id).length); return b ? `Goal: hold all ${S.caps0.length} starting capitals (flag) at once. Closest: ${b.name}, ${v}.` : ''; }
+  if (mode === 'total') return `Goal: eliminate every rival. ${Math.max(0, live.length-1)} left to beat.`;
+  return 'Goal: conquer everything, or hold your capital, the Mine and 60% of the map for two rounds.';
+}
+function checkAlt(){
+  const mode = S.winMode || 'control';
+  if (mode === 'majority'){
+    const nd = Math.ceil(0.7*TER.length);
+    for (const p of S.p){ if (p.neutral || !p.alive) continue; if (owned(p.id).length >= nd){ S.winner = p.id; S.altWin = true; log(`${p.name} holds ${owned(p.id).length} of ${TER.length} territories at the end of the round and wins`, p.id); return true; } }
+    return false;
+  }
+  if (mode !== 'control') return false;
+  const need = Math.ceil(0.6*TER.length);
+  for (const p of S.p){
+    if (p.neutral || !p.alive) continue;
+    const ok = p.capital != null && S.t[p.capital].o === p.id && S.mine != null && S.t[S.mine].o === p.id && owned(p.id).length >= need;
+    S.vic[p.id] = ok ? (S.vic[p.id]|0) + 1 : 0;
+    if (ok) log(`${p.name} holds its capital, the Mine and ${need}+ territories: ${S.vic[p.id]} of 2 rounds`, p.id);
+    if (S.vic[p.id] >= 2){ S.winner = p.id; S.altWin = true; log(`${p.name} wins by control`, p.id); return true; }
+  }
+  return false;
+}
+
+/* ---------- cards ---------- */
+function validSet(c){
+  if (c.some(x => x.k===3)) return true;
+  const ks = new Set(c.map(x => x.k)); return ks.size===1 || ks.size===3;
+}
+function bestSet(hand){
+  let best = null;
+  for (let i=0;i<hand.length;i++) for (let j=i+1;j<hand.length;j++) for (let k=j+1;k<hand.length;k++){
+    const c = [hand[i],hand[j],hand[k]];
+    if (!validSet(c)) continue;
+    const w = c.filter(x=>x.k===3).length;
+    if (!best || w < best.w) best = {idx:[i,j,k], w};
+  }
+  return best && best.idx;
+}
+function tradeValue(){ const v=[4,6,8,10,12,15]; return S.trades < 6 ? v[S.trades] : 15 + 5*(S.trades-5); }
+function doTrade(pid){
+  const p = S.p[pid], idx = bestSet(p.hand);
+  if (!idx) return false;
+  const val = tradeValue(); S.trades++;
+  const cards = idx.slice().sort((a,b)=>b-a).map(i => p.hand.splice(i,1)[0]);
+  S.deck.push(...cards); S.reinf += val;
+  rec('trade', {tradeNo:S.trades, value:val, cards:cards.map(c => KINDS[c.k] + (c.t ? ':' + c.t : '')), reinforceNow:S.reinf});
+  log(`${p.name} traded a card set for ${val} troops`, pid);
+  return true;
+}
+
+/* ---------- game flow ---------- */
+function newGame(nOpp, mapKey){
+  if (S) saveNow();
+  loadMap(mapKey || UI.mapKey || 'classic'); UI.mapKey = curMap;
+  const seed = String(UI.seedIn||'').trim() || String(100000+Math.floor(Math.random()*900000)); UI.seedIn = '';
+  const R = mkRng(seed), np = nOpp+1;
+  S = {v3:true, token:Math.random(), p:[], t:{}, cur:0, phase:'reinforce', reinf:0, conquered:false, trades:0, deck:[],
+       pending:null, lastDice:null, winner:null, defeated:false, log:[], round:1, flash:null, map:curMap,
+       seed, level:UI.level||'normal', winMode:UI.winMode||'majority', caps0:[], mtn:[], order:[], ab:{}, fired:{}, firedF:{}, charged:{}, cfired:{}, cdef:{}, battle:null,
+       forced:false, np, neu:np, mine:null, rich:{}, vic:{}, merc:0};
+  S.n = (lsGet('im:n') || 0) + 1; lsSet('im:n', S.n); S.gid = 'g' + Date.now().toString(36);
+  for (let i=0;i<=nOpp;i++) S.p.push({id:i, name:NAMES[i], ai:i>0, aggr:AGGR[i], hand:[], alive:true, coin:0, capital:null, trait:null});
+  S.p.push({id:np, name:'Meridian Garrison', ai:true, aggr:false, hand:[], alive:true, neutral:true, coin:0, capital:null, trait:null});
+  const traits = drawTraits(R, np); traits.forEach((tr,i) => { S.p[i].trait = tr; });
+  const ids0 = TER.map(t => t.id), bd = {};
+  const bfsD = st => bd[st] || (bd[st] = (() => { const d = {[st]:0}, q = [st]; while (q.length){ const c = q.shift(); byId[c].adj.forEach(n => { if (d[n]==null){ d[n] = d[c]+1; q.push(n); } }); } return d; })());
+  let tries = 0, ok = false, mine = null;
+  do {
+    const seeds = [ids0[Math.floor(R()*ids0.length)]];
+    while (seeds.length < np){ let best = null, bs = -1; for (const id of ids0){ if (seeds.includes(id)) continue; const m = Math.min(...seeds.map(x => bfsD(x)[id])), sc = m + R()*0.9; if (sc > bs){ bs = sc; best = id; } } seeds.push(best); }
+    shuffle(seeds, R);
+    let bm = 1e9; mine = null;
+    for (const id of ids0){ if (seeds.includes(id)) continue; const ds = seeds.map(x => bfsD(x)[id]), sc = (Math.max(...ds)-Math.min(...ds))*10 + ds.reduce((a,b) => a+b, 0) + R(); if (sc < bm){ bm = sc; mine = id; } }
+    const owner = {}; seeds.forEach((x,i) => { owner[x] = i; });
+    let progress = true;
+    while (progress){ progress = false; for (let i=0;i<np;i++){ const fr = []; for (const id in owner){ if (owner[id] !== i) continue; byId[id].adj.forEach(n => { if (n !== mine && owner[n] == null) fr.push(n); }); } if (fr.length){ owner[fr[Math.floor(R()*fr.length)]] = i; progress = true; } } }
+    ids0.forEach(id => { if (id !== mine && owner[id] == null) owner[id] = Math.floor(R()*np); });
+    ids0.forEach(id => { S.t[id] = {o: id===mine ? np : owner[id], a:1, gd:0, cv:0, ar:0, ac:0, fl:0, w:0, fort:0, cg:0, cap:0, cn:[]}; });
+    ok = !Object.keys(CONT).some(k => S.p.slice(0,np).some(p => TER.filter(t => t.c===k).every(t => S.t[t.id].o===p.id)));
+  } while (!ok && tries++ < 300);
+  S.mine = mine;
+  for (let i=0;i<np;i++){
+    const mineT = ids0.filter(id => S.t[id].o===i); let best = null, bs = 1e9;
+    mineT.forEach(id => { const en = byId[id].adj.filter(n => S.t[n].o !== i).length, sc = en*10 - byId[id].adj.filter(n => S.t[n].o===i).length + R(); if (sc < bs){ bs = sc; best = id; } });
+    const cg = hasW(i,'open') ? 1 : 2, c = S.t[best];
+    c.cap = 1; c.cg = cg; c.gd = cg; c.a = cg; S.p[i].capital = best;
+  }
+  S.caps0 = S.p.slice(0,np).map(p => p.capital);
+  const base0 = np===2 ? 40 : np===3 ? 35 : 30, base = MAPS[curMap].big ? Math.round(base0*TER.length/32) : base0;
+  for (let pid=0; pid<np; pid++){
+    const mineT = ids0.filter(id => S.t[id].o===pid), used = mineT.reduce((a,id) => a + S.t[id].a, 0);
+    const total = Math.max(used + 2, base + (hasS(pid,'levy') ? 4 : 0) - (hasW(pid,'conscripts') ? 3 : 0));
+    let left = total - used;
+    while (left-- > 0) S.t[mineT[Math.floor(R()*mineT.length)]].a++;
+  }
+  const mt = S.t[mine]; mt.a = 10; mt.gd = 1;
+  const pool = mtnPool().filter(id => id !== mine); S.mtn = shuffle(pool, R).slice(0, Math.min(pool.length, (6 + Math.floor(R()*3)) * (MAPS[curMap].big ? 2 : 1))); S.mtn.push(mine);
+  for (let pid=0; pid<np; pid++) if (hasS(pid,'highlander')){
+    const c = shuffle(ids0.filter(id => S.t[id].o===pid && !S.t[id].cap && !S.mtn.includes(id)), R).slice(0,2); c.forEach(id => S.mtn.push(id));
+  }
+  shuffle(ids0.filter(id => id !== mine), R).slice(0, Math.floor(ids0.length/4)).forEach(id => { S.rich[id] = 1 + Math.floor(R()*3); });
+  S.order = shuffle(S.p.slice(0,np).map(p => p.id), R); S.cur = S.order[0];
+  const deck = TER.map((t,i) => ({k:i%3, t:t.id})); deck.push({k:3,t:null},{k:3,t:null});
+  S.deck = shuffle(deck, R);
+  Object.assign(UI, {sel:null,tgt:null,place:1,extra:0,fSel:null,fTo:null,fAmt:1,msg:'',mode:'troop',mv:{},cn:false});
+  $('#overlay').hidden = true;
+  log('The war begins. Homelands are dealt; the Meridian Mine is neutral and heavily guarded.');
+  S.p.slice(0,np).forEach(p => log(`${p.name}: ${TRAITS.S[p.trait.s].n} (${TRAITS.S[p.trait.s].d}), ${TRAITS.W[p.trait.w].n} (${TRAITS.W[p.trait.w].d})`, p.id));
+  if (window.MoveRecorder){ try {
+    window.MoveRecorder.start({seed:S.seed, level:S.level, winMode:S.winMode, mountains:S.mtn, map:MAPS[curMap].name, mapKey:curMap, players:S.p.map(p => ({id:p.id, name:p.name, ai:p.ai, aggr:p.aggr})),
+      territories:TER.map(t => ({id:t.id, name:t.name, continent:t.c, adj:t.adj})),
+      continents:Object.fromEntries(Object.entries(CONT).map(([k,v]) => [k, {name:v.name, bonus:v.bonus, size:v.size, entries:v.entries}]))});
+    rec('game_start', {board:snap(), opponents:np-1, troopsEach:base, order:S.order, mine:S.mine, capitals:S.p.slice(0,np).map(p => p.capital), traits:S.p.slice(0,np).map(p => p.trait), rich:S.rich, lanes:LANES});
+  } catch (e) {} }
+  startTurn();
+}
+function startTurn(){
+  const pid = S.cur, p = S.p[pid];
+  S.phase = 'reinforce'; S.conquered = false; S.ab = {}; S.fired = {}; S.firedF = {}; S.charged = {}; S.cfired = {}; S.cdef = {}; S.battle = null; S.merc = 0; S.lastDice = null; S.pending = null;
+  owned(pid).forEach(t => { const x = S.t[t.id]; x.cvx = 0; (x.cn||[]).forEach(c => { c.cool = false; c.mv = false; }); });
+  let lost = false;
+  if (p.capital == null || S.t[p.capital].o !== pid){ lost = true; designateCapital(pid); }
+  const inc = incomeFor(pid), got = pay(pid, inc.total);
+  S.reinf = calcReinforce(pid, lost);
+  Object.assign(UI, {sel:null,tgt:null,fSel:null,fTo:null,msg:'',cn:false});
+  log(`${p.name}'s turn: ${S.reinf} troops to place` + (got ? `, +${got} coin` : ''), pid);
+  rec('turn_start', {base:Math.max(3, Math.floor(owned(pid).length/3)), continentBonus:contBonus(pid), continents:Object.keys(CONT).filter(k => TER.filter(t=>t.c===k).every(t => S.t[t.id].o===pid)), reinforce:S.reinf, territories:owned(pid).length, cards:p.hand.length, hand:p.hand.map(c=>KINDS[c.k]).join(','), catchup:isLowest(pid)?2:0, capitalLost:lost, income:inc, coin:p.coin});
+  render();
+  if (p.ai) aiTurn(S.token);
+}
+function endTurn(){
+  const p = S.p[S.cur];
+  const drew = S.conquered && S.deck.length > 0;
+  if (drew){ p.hand.push(S.deck.shift()); log(`${p.name} drew a card`, p.id); }
+  rec('turn_end', {conquered:S.conquered, drewCard:drew, cards:p.hand.length, hand:p.hand.map(c=>KINDS[c.k]).join(','), setHeld:!!bestSet(p.hand), board:snap()});
+  let oi = S.order.indexOf(S.cur), wrapped = false;
+  do { oi = (oi+1) % S.order.length; S.cur = S.order[oi]; if (oi === 0){ S.round++; wrapped = true; } } while (!S.p[S.cur].alive);
+  if (wrapped && checkAlt()){ render(); return; }
+  startTurn();
+}
+
+function pay(pid, n){ const p = S.p[pid]; if (!p || p.neutral || !(n > 0)) return 0; const b = Math.min(30, (p.coin|0)+n) - (p.coin|0); p.coin = (p.coin|0) + b; return b; }
+function bounty(t, n){ const ord = Math.max(0, t.a - spAll(t)), o = Math.min(n, ord); return o + (n-o)*2; }
+function absorb(tid, n){
+  const d = S.t[tid], ab = S.ab[tid] || (S.ab[tid] = {g:0, c:0}); let got = 0;
+  const room = () => 8 - (ab.g + ab.c);
+  let k = Math.min(n, 2*(d.gd|0) - ab.g, room()); if (k > 0){ ab.g += k; got += k; n -= k; }
+  const cm = 4*((d.cn||[]).length);
+  k = Math.min(n, cm - ab.c, room()); if (k > 0){ ab.c += k; got += k; n -= k; if (ab.c >= cm) (d.cn||[]).forEach(c => { c.cool = true; }); }
+  return got;
+}
+function battleMods(fromId, toId, commit){
+  const f = S.t[fromId], d = S.t[toId], atk = f.o, def = d.o, lane = !byId[fromId].adj.includes(toId), onMtn = isMtn(toId), key = fromId+'>'+toId, mods = [];
+  let ap = 0, dp = 0, pen = 0;
+  const sapper = f.ar>0 && f.a>=4;
+  if (f.cv>0 && !onMtn && !lane && !S.charged[key] && !f.cvx){
+    if (d.cv>0) mods.push('defending cavalry cancels the charge'); else { ap += 25; mods.push('cavalry charge +25%'); }
+    if (commit) S.charged[key] = 1;
+  }
+  const ar = rankOf(f); if (ar){ ap += ar*10; mods.push(`attacker veteran rank ${ar} +${ar*10}%`); }
+  if (lane){ pen += 15; mods.push('amphibious landing -15%'); }
+  if (onMtn && hasW(atk,'lowlander')){ pen += 10; mods.push('lowlander -10% into mountains'); }
+  if (onMtn){ if (sapper) mods.push('sappers cancel the mountain'); else { const m = hasS(def,'highlander') ? 40 : 25; dp += m; mods.push(`mountain +${m}% defender`); } }
+  if (d.cap){ const m = hasS(def,'bulwark') ? 45 : 30; dp += m; mods.push(`capital fortress +${m}%`); }
+  if (d.fort){ dp += 20; mods.push('fort +20%'); }
+  const dr = rankOf(d); if (dr){ dp += dr*10; mods.push(`defender veteran rank ${dr} +${dr*10}%`); }
+  if (lane && d.fl>0){ dp += 25; mods.push('harbor defense +25%'); }
+  ap = Math.min(60, ap) - pen; dp = Math.min(60, dp);
+  return {ap, dp, mods, lane, onMtn};
+}
+function strengths(fromId, toId, m){ const f = S.t[fromId], d = S.t[toId]; let at = f.a-1; if (m.lane) at = Math.min(at, 5*(f.fl|0)); return {A:at*(1+m.ap/100), D:d.a*(1+m.dp/100), at}; }
+function retreatTarget(toId){ const own = S.t[toId].o; let best = null; byId[toId].adj.forEach(n => { if (S.t[n].o === own && (best == null || S.t[n].a > S.t[best].a)) best = n; }); return best; }
+function doRetreat(toId, rt, atk, def){
+  const d = S.t[toId], r = S.t[rt]; let pur = d.a>=4 ? 2 : (d.a>=2 ? 1 : 0); pur = Math.min(pur, d.a-1);
+  if (pur > 0){ pay(atk, bounty(d, pur)); d.a -= pur; trim(d); }
+  const moved = d.a; dropRank(d);
+  r.a += moved;
+  const sel = {}; SP.forEach(x => { sel[x.k] = avail(d, x.k); });
+  moveTags(d, r, sel, rt);
+  if (moved > r.a - moved) r.w = Math.max(r.w|0, d.w|0);
+  while ((d.cn||[]).length && r.cn.length < 2) r.cn.push(d.cn.shift());
+  d.a = 0;
+  rec('retreat', {from:toId, to:rt, moved, pursuitKills:pur, defender:def, attacker:atk});
+  log(`${S.p[def].name}'s force breaks and retreats from ${byId[toId].name} to ${byId[rt].name}`, def);
+}
+function rollAttack(fromId, toId){
+  const f = S.t[fromId], d = S.t[toId], atk = f.o, def = d.o;
+  if (f.a < 2) return {al:0, dl:0, conquered:false};
+  const key = fromId+'>'+toId;
+  if (!S.battle || S.battle.key !== key){ S.battle = {key, startD:d.a, startA:f.a-1, round:0}; if (!byId[fromId].adj.includes(toId)) dropRank(f); }
+  const B = S.battle, m = battleMods(fromId, toId, true), mods = m.mods.slice();
+  const fA = fac(), fD = fac(); let salvoD = 0, salvoA = 0;
+  if (B.round === 0){
+    const ready = t => (t.cn||[]).some(c => !c.cool) && t.a >= 3;
+    const rf = ready(f) && !S.cfired[fromId], rd = ready(d) && !S.cdef[toId];
+    const sf = rf ? f.cn.filter(c => !c.cool).length * Math.max(0, Math.round(4*fA) - (m.onMtn?1:0)) : 0;
+    const sd = rd ? d.cn.filter(c => !c.cool).length * Math.max(0, Math.round(4*fD) - (isMtn(fromId)?1:0)) : 0;
+    if (rf){ const eff = Math.min(sf, d.a-1); if (eff > 0){ const ab = absorb(toId, eff), k = eff-ab; if (k > 0){ pay(atk, bounty(d,k)); d.a -= k; trim(d); } salvoD = k; if (ab) mods.push(`salvo absorbed ${ab}`); } S.cfired[fromId] = 1; mods.push(`cannon salvo kills ${salvoD}`); }
+    if (rd){ const eff = Math.min(sd, f.a-1); if (eff > 0){ const ab = absorb(fromId, eff), k = eff-ab; if (k > 0){ pay(def, bounty(f,k)); f.a -= k; trim(f); } salvoA = k; if (ab) mods.push(`counter-salvo absorbed ${ab}`); } S.cdef[toId] = 1; mods.push(`defending cannon kills ${salvoA}`); }
+  }
+  if (f.a < 2){
+    S.battle = null; S.lastDice = {ar:[0], dr:[0], atk, def, from:fromId, to:toId, al:salvoA, dl:salvoD, mods, strength:true};
+    return {al:salvoA, dl:salvoD, conquered:false};
+  }
+  const {A, D} = strengths(fromId, toId, m), fb = f.a, tb = d.a;
+  let dl = Math.min(d.a, Math.max(1, Math.round(0.1*A*fA))), al = Math.min(f.a-1, Math.max(1, Math.round(0.1*D*fD)));
+  const gAbs = absorb(toId, dl); dl -= gAbs; if (gAbs) mods.push(`absorbed ${gAbs}`);
+  pay(atk, bounty(d, dl)); pay(def, bounty(f, al));
+  f.a -= al; d.a -= dl; trim(f); trim(d);
+  const exA = Math.min(fb-1, Math.max(1, 0.1*D)), exD = Math.min(tb, Math.max(1, 0.1*A));
+  S.lastDice = {ar:[+A.toFixed(1)], dr:[+D.toFixed(1)], atk, def, from:fromId, to:toId, al:al+salvoA, dl:dl+salvoD, mods, strength:true};
+  rec('attack', {attacker:atk, fromBefore:fb, toBefore:tb, from:fromId, to:toId, defender:def, atkDice:[+A.toFixed(1)], defDice:[+D.toFixed(1)], atkLost:al+salvoA, defLost:dl+salvoD, fromTroops:f.a, toTroops:d.a, mods, gAbs, expAtk:+exA.toFixed(3), expDef:+exD.toFixed(3)});
+  B.round++;
+  let conquered = false;
+  if (d.a <= 0){
+    if (B.startD >= 0.5*B.startA && (f.w|0) < 4) f.w = (f.w|0)+1;
+    conquered = true; conquer(fromId, toId, atk, def, Math.min(3, f.a-1));
+  } else if (B.startD > 1 && d.a < 0.6*B.startD){
+    const rt = retreatTarget(toId);
+    if (rt != null){
+      if (B.startD >= 0.5*B.startA && (f.w|0) < 4) f.w = (f.w|0)+1;
+      doRetreat(toId, rt, atk, def); conquered = true; conquer(fromId, toId, atk, def, Math.min(3, f.a-1));
+    }
+  } else if (f.a <= 1){
+    if (B.startA >= 0.5*B.startD && (d.w|0) < 4) d.w = (d.w|0)+1;
+    S.battle = null;
+  }
+  return {al, dl, conquered};
+}
+function volley(fromId, toId, kind){
+  kind = kind || 'ac';
+  const f = S.t[fromId], d = S.t[toId], mt = isMtn(toId), a = 1+rnd(6); let b = 1+rnd(6), k = 0; const mods = [];
+  if (mt){ b = Math.min(6, b+1); mods.push('mountain +1 defender'); }
+  if (a > b){
+    if (d.a <= 1) mods.push('last troop spared');
+    else if (absorb(toId, 1) > 0) mods.push('Guard absorbed 1');
+    else { pay(f.o, bounty(d,1)); d.a--; k = 1; trim(d); }
+  }
+  (kind==='fl' ? S.firedF : S.fired)[fromId] = 1; S.flash = toId;
+  S.lastDice = {ar:[a], dr:[b], atk:f.o, def:d.o, from:fromId, to:toId, al:0, dl:k, mods, volley:true};
+  rec('volley', {attacker:f.o, from:fromId, to:toId, defender:d.o, atkDie:a, defDie:b, killed:k, mods, toTroops:d.a, exp:mt?0.278:0.417, kind});
+  log(`${S.p[f.o].name}'s ${kind==='fl'?'fleet':'archers'} on ${byId[fromId].name} fire at ${byId[toId].name}${k?' and kill 1 troop':''}`, f.o);
+}
+function conquer(fromId, toId, atk, def, ad){
+  const f = S.t[fromId], d = S.t[toId], wasCap = d.cap, oldCn = d.cn || [];
+  const lane = !byId[fromId].adj.includes(toId);
+  ad = Math.max(1, Math.min(ad, f.a-1)); if (lane) ad = Math.max(1, Math.min(ad, 5*(f.fl|0)));
+  d.o = atk; d.a = ad; f.a -= ad; d.gd = d.cv = d.ar = d.ac = d.fl = 0; d.fort = 0; d.cap = 0; d.cg = 0; d.cn = []; d.w = 0;
+  moveTags(f, d, null, toId);
+  if (d.a > f.a) d.w = f.w|0;
+  S.conquered = true; S.flash = toId; S.battle = null;
+  log(`${S.p[atk].name} captured ${byId[toId].name} from ${S.p[def].name}`, atk);
+  oldCn.forEach(c => {
+    let keep = false;
+    if (c.b === atk) keep = cannonCount(atk, true) < 1; else keep = cannonCount(atk, false) < 1;
+    if (keep){ d.cn.push({b:c.b, cool:true, mv:false}); log(`${S.p[atk].name} captures a cannon`, atk); }
+    else { pay(atk, 10); log(`${S.p[atk].name} salvages a cannon for 10 coin`, atk); }
+  });
+  if (wasCap){
+    const dp = S.p[def]; dp.capital = null; const loot = Math.floor((dp.coin|0)*0.25); dp.coin = (dp.coin|0) - loot; const got = pay(atk, loot);
+    log(`${S.p[atk].name} captures ${S.p[def].name}'s capital and loots ${got} coin`, atk);
+    rec('capital_captured', {attacker:atk, previousOwner:def, terr:toId, loot:got});
+  }
+  rec('conquer', {attacker:atk, from:fromId, to:toId, previousOwner:def, moved:ad, fromAfter:f.a, toAfter:d.a, defenderTerritoriesLeft:owned(def).length});
+  if (!owned(def).length && !S.p[def].neutral){
+    S.p[def].alive = false;
+    S.p[atk].hand.push(...S.p[def].hand); S.p[def].hand = [];
+    pay(atk, S.p[def].coin|0); S.p[def].coin = 0;
+    log(`${S.p[def].name} has been eliminated`, def);
+    rec('eliminated', {eliminated:def, eliminatedName:S.p[def].name});
+    if (def === 0) S.defeated = true;
+    const ah = S.p[atk].hand; let nt = 0;
+    if (ah.length >= 6){ while (ah.length >= 5 && bestSet(ah)){ doTrade(atk); nt++; } if (nt && !S.p[atk].ai){ S.forced = true; log('Elimination gave you 6+ cards: sets were traded. Place the new troops after your move-in.', atk); } }
+  }
+  if (checkWin()) return;
+  if (!S.p[atk].ai && f.a > 1){ S.pending = {from:fromId, to:toId}; UI.extra = 0; UI.mv = {}; UI.cn = false; }
+  if (S.forced && !S.pending){ S.forced = false; S.phase = 'reinforce'; rec('phase', {to:'reinforce'}); }
+}
+function buy(pid, id, mode){
+  const p = S.p[pid], t = S.t[id];
+  if (mode === 'fort'){ if (t.fort) return 'That territory already has a fort.'; if ((p.coin|0) < 6) return 'A fort costs 6 coin.'; p.coin -= 6; t.fort = 1; rec('buy', {terr:id, item:'Fort', cost:6, coinLeft:p.coin}); log(`${p.name} builds a fort on ${byId[id].name}`, pid); return null; }
+  if (mode === 'cn'){
+    if ((p.coin|0) < 20) return 'A cannon costs 20 coin.'; if (cannonCount(pid, true) >= 1) return 'You already own a cannon (limit 1 own).'; if ((t.cn||[]).length >= 2) return 'That territory cannot hold more cannons.';
+    p.coin -= 20; t.cn = t.cn || []; t.cn.push({b:pid, cool:false, mv:false}); rec('buy', {terr:id, item:'Cannon', cost:20, coinLeft:p.coin}); log(`${p.name} deploys a cannon on ${byId[id].name}`, pid); return null;
+  }
+  if (mode === 'merc'){ if ((p.coin|0) < 4) return 'A mercenary costs 4 coin.'; if (S.merc >= 2) return 'At most 2 mercenaries per turn.'; p.coin -= 4; S.merc++; t.a++; rec('buy', {terr:id, item:'Mercenary', cost:4, coinLeft:p.coin}); return null; }
+  if (mode === 'cap'){ if (t.cap) return 'That is already your capital.'; if ((p.coin|0) < 10) return 'Moving the capital costs 10 coin.'; const old = S.t[p.capital]; if (old){ old.cap = 0; old.cg = 0; } t.cap = 1; t.cg = 0; p.capital = id; p.coin -= 10; rec('capital_relocated', {terr:id, auto:false}); log(`${p.name} moves its capital to ${byId[id].name}`, pid); return null; }
+  const sp = SP.find(x => x.k === mode); if (!sp) return 'Unknown purchase.';
+  const cost = specCost(pid, mode);
+  if ((p.coin|0) < cost) return `${sp.n} costs ${cost} coin.`;
+  if (t.a - spAll(t) < 1) return 'No ordinary troop left to convert there.';
+  if (spN(t)+1 > Math.ceil(t.a/5)) return `${byId[id].name} is at its specialist limit (1 per 5 troops, rounded up).`;
+  if (mode === 'fl' && !COAST.has(id)) return 'Fleets can only be bought on a coastal territory.';
+  p.coin -= cost; t[mode] = (t[mode]|0)+1; S.flash = id;
+  rec('upgrade', {terr:id, kind:sp.n, cost, after:t.a, left:p.coin});
+  log(`${p.name} upgrades a troop on ${byId[id].name} to ${sp.n}`, pid);
+  return null;
+}
+
+/* ---------- AI ---------- */
+const isH = l => l==='hard' || l==='expert';
+function contFrac(pid, k){
+  const ts = TER.filter(t=>t.c===k); return ts.filter(t=>S.t[t.id].o===pid).length / ts.length;
+}
+function aiPickReinforce(pid){
+  if ((S.level||'normal')==='expert') return aiPickReinforceX(pid);
+  const sup = supplied(pid), mine = owned(pid).filter(t => sup.has(t.id)); if (!mine.length) return null;
+  const border = mine.filter(t => hasEnemyNeighbor(t.id, pid));
+  const lv = S.level||'normal';
+  if (lv==='easy' || !border.length) return mine[rnd(mine.length)].id;
+  let best = null, bs = -1e9;
+  for (const t of border){
+    const enemies = t.adj.filter(n => S.t[n].o !== pid);
+    let s = enemies.length*1.2 + contFrac(pid, t.c)*4 + Math.random()*1.5;
+    const missing = TER.filter(x => x.c===t.c && S.t[x.id].o!==pid).length;
+    if (missing > 0 && missing <= 2 && enemies.some(n => byId[n].c===t.c)) s += 3;
+    s -= S.t[t.id].a*0.08;
+    if (S.t[t.id].cap) s += 1.5;
+    if (isH(lv)){ const th = Math.max(0, ...enemies.map(n => S.t[n].a)) - S.t[t.id].a; s += Math.max(0, th)*0.6; if (missing>0 && missing<=2) s += 2; }
+    if (s > bs){ bs = s; best = t.id; }
+  }
+  return best;
+}
+function aiPickAttack(pid){
+  const p = S.p[pid], lv = S.level||'normal'; let best = null, bs = -1e9;
+  if (lv==='expert') return aiPickAttackX(pid);
+  const holder = S.mine != null ? S.t[S.mine].o : -1;
+  for (const t of owned(pid)){
+    const a = S.t[t.id].a; if (a < 2) continue;
+    for (const nid of meleeTargets(t.id)){
+      const n = S.t[nid], sap = S.t[t.id].ar>0 && a>=4;
+      const ne = n.a + (isMtn(nid) && !sap ? 1 : 0) + (byId[t.id].adj.includes(nid) ? 0 : 1) + (n.cap ? 1 : 0) + ((n.cn&&n.cn.length) ? 2 : 0);
+      const okA = lv==='easy' ? a >= 2 : isH(lv) ? (a >= 3 && a >= ne*2) : (p.aggr ? (a >= ne+1 && a >= 3) : (a >= ne+2));
+      if (!okA) continue;
+      const nt = byId[nid];
+      let s = lv==='easy' ? Math.random()*8 : (a - ne) - ne*0.3 + Math.random();
+      if (isH(lv) && n.o===0) s += 1.5;
+      if (nid === S.mine) s += 4;
+      if (holder >= 0 && n.o === holder && holder !== pid && !S.p[holder].neutral) s += 1.5;
+      if (n.cap) s += 1;
+      if (S.winMode==='capitals' && S.caps0 && S.caps0.includes(nid)) s += 4;
+      const others = TER.filter(x => x.c===nt.c && x.id!==nid);
+      if (others.every(x => S.t[x.id].o===pid)) s += 6;
+      if (owned(n.o).length === 1) s += 5;
+      if (TER.filter(x=>x.c===nt.c).every(x => S.t[x.id].o===n.o)) s += 5;
+      s += contFrac(pid, nt.c)*3;
+      if (s > bs){ bs = s; best = {from:t.id, to:nid}; }
+    }
+  }
+  return best;
+}
+function aiPickUpgrade(pid, id){
+  const lv = S.level||'normal', t = S.t[id], coin = S.p[pid].coin|0;
+  if (t.a - spAll(t) < 1 || spN(t)+1 > Math.ceil(t.a/5)) return null;
+  const adjE = byId[id].adj.filter(n => S.t[n].o !== pid); if (!adjE.length) return null;
+  const o = [], strongest = Math.max(...adjE.map(n => S.t[n].a));
+  if (lv==='easy'){ if (Math.random() > .2) return null; const k = SP[rnd(SP.length)]; return (coin >= specCost(pid,k.k) && (k.k!=='fl' || COAST.has(id))) ? k.k : null; }
+  if (t.a <= 3 && !t.gd && coin >= specCost(pid,'gd') && strongest > t.a) o.push('gd');
+  if (coin >= 4){
+    if (!t.ar && t.a >= 4 && adjE.some(n => isMtn(n))) o.push('ar');
+    if (!t.cv && t.a >= 4 && adjE.some(n => S.t[n].a < t.a-1 && !isMtn(n))) o.push('cv');
+    if (!t.ac && t.a >= 2 && [...within2(id)].some(n => S.t[n].o !== pid && S.t[n].a > 1)) o.push('ac');
+    if (!t.fl && COAST.has(id) && laneNb(id).some(n => S.t[n].o !== pid && !isMtn(n) && S.t[n].a <= t.a)) o.push('fl');
+  }
+  if (lv==='expert') return ['ar','cv','ac','fl','gd'].find(k => o.includes(k)) || null;
+  return o.length && Math.random() < (isH(lv) ? .7 : .4) ? o[rnd(o.length)] : null;
+}
+async function aiBuy(pid, ok){
+  const p = S.p[pid], lv = S.level||'normal', sup = supplied(pid);
+  if (lv==='expert') return aiBuyX(pid, ok);
+  const front = owned(pid).filter(t => sup.has(t.id) && hasEnemyNeighbor(t.id, pid)).sort((a,b) => S.t[b.id].a - S.t[a.id].a);
+  let n = 0;
+  while (n++ < 4 && front.length){
+    const id = front[Math.min(front.length-1, rnd(Math.min(3, front.length)))].id, t = S.t[id]; let did = false;
+    const up = aiPickUpgrade(pid, id);
+    if ((p.coin|0) >= 20 && cannonCount(pid, true) < 1 && t.a >= 4 && lv !== 'easy') did = !buy(pid, id, 'cn');
+    else if (up) did = !buy(pid, id, up);
+    else if ((p.coin|0) >= (isH(lv) ? 6 : 10) && !t.fort && lv !== 'easy' && (t.cap || byId[id].adj.filter(x => S.t[x].o !== pid).length >= 2)) did = !buy(pid, id, 'fort');
+    else if ((p.coin|0) >= 26 && S.merc < 2) did = !buy(pid, id, 'merc');
+    if (!did) break;
+    render(); await sleep(250); if (!ok()) return false;
+  }
+  return true;
+}
+async function aiPlace(pid, ok){
+  const placed = {};
+  while (S.reinf > 0){
+    const id = aiPickReinforce(pid); if (id == null){ S.reinf = 0; break; }
+    const q = S._aiQty|0; S._aiQty = 0; const m = q > 0 ? Math.min(S.reinf, q) : Math.min(S.reinf, Math.max(1, Math.ceil(S.reinf/2)));
+    S.t[id].a += m; S.reinf -= m; S.flash = id; placed[id] = (placed[id]||0) + m;
+    rec('place', {terr:id, qty:m, after:S.t[id].a, left:S.reinf});
+    render(); await sleep(280); if (!ok()) return null;
+  }
+  return placed;
+}
+async function aiVolleys(pid, ok){
+  for (const t of owned(pid)){
+    const x = S.t[t.id];
+    if (x.ac>0 && !S.fired[t.id]){
+      const tg = [...within2(t.id)].filter(n => S.t[n].o !== pid && S.t[n].a > 1).sort((a,b) => S.t[a].a - S.t[b].a + (isMtn(a)?2:0) - (isMtn(b)?2:0));
+      if (tg.length){ volley(t.id, tg[0], 'ac'); render(); await sleep(220); if (!ok()) return false; }
+    }
+    if (x.fl>0 && !S.firedF[t.id]){
+      const tg = [...fleetTargets(t.id)].filter(n => S.t[n].o !== pid && S.t[n].a > 1).sort((a,b) => S.t[a].a - S.t[b].a + (isMtn(a)?2:0) - (isMtn(b)?2:0));
+      if (tg.length){ volley(t.id, tg[0], 'fl'); render(); await sleep(220); if (!ok()) return false; }
+    }
+  }
+  return true;
+}
+
+/* ---------- Expert AI ---------- */
+function simAttack(fromId, toId, extra, pess){
+  const f = S.t[fromId], d = S.t[toId], m = battleMods(fromId, toId, false);
+  let at = f.a - 1 + (extra|0); if (m.lane) at = Math.min(at, 5*(f.fl|0));
+  if (at < 1) return {win:false, aLoss:0, dLoss:0, left:0};
+  let dd = d.a + Math.min(2*(d.gd|0), 2), a0 = at, d0 = dd, rounds = 0, win = false;
+  const fa = pess ? 0.92 : 1, fd = pess ? 1.08 : 1, canRet = byId[toId].adj.some(n => S.t[n].o === d.o);
+  while (at > 0 && dd > 0 && rounds++ < 80){
+    const A = at*(1 + m.ap/100), D = dd*(1 + m.dp/100);
+    dd -= Math.max(1, Math.round(0.1*A*fa)); at -= Math.max(1, Math.round(0.1*D*fd));
+    if (dd > 0 && canRet && dd < 0.6*d0 && at > 0){ win = true; break; }
+  }
+  if (dd <= 0 && at > 0) win = true;
+  return {win: win && at >= 1, aLoss: a0 - Math.max(at,0), dLoss: d0 - Math.max(dd,0), left: Math.max(at,0)};
+}
+function aiThreats(pid){
+  const out = {}, n = TER.length;
+  for (const q of S.p){
+    if (q.neutral || !q.alive || q.id === pid) continue;
+    const c = owned(q.id).length, share = c/n; let vic = share/0.6;
+    if (S.winMode === 'majority') vic = c/Math.ceil(0.7*n);
+    else if (S.winMode === 'capitals' && S.caps0) vic = S.caps0.filter(x => S.t[x].o === q.id).length / S.caps0.length;
+    else if (S.winMode === 'total') vic = share;
+    out[q.id] = {vic, score: vic*2 + share + contBonus(q.id)/10 + incomeFor(q.id).total/20};
+  }
+  return out;
+}
+function aiTargetValue(nid, pid, thr){
+  const n = S.t[nid], o = n.o, nt = byId[nid], ts = TER.filter(x => x.c === nt.c), bonus = CONT[nt.c].bonus;
+  let v = 4 + (S.rich[nid]|0)*1.5;
+  if (nid === S.mine) v += 7;
+  if (n.cap) v += 3;
+  if (S.winMode === 'capitals' && S.caps0 && S.caps0.includes(nid)) v += 11;
+  const mineN = ts.filter(x => S.t[x.id].o === pid).length;
+  v += mineN === ts.length-1 ? bonus*2.2 : bonus*1.2*mineN/ts.length;
+  if (!S.p[o].neutral && ts.every(x => S.t[x.id].o === o)) v += bonus*2;
+  if (!S.p[o].neutral && owned(o).length === 1) v += 8;
+  const th = thr[o]; if (th){ v += th.score*2.5; if (th.vic >= 0.85) v += 18; }
+  const my = owned(pid).length/TER.length; if (S.winMode === 'majority' || S.winMode === 'control') v *= 1 + my*0.6;
+  return v;
+}
+function aiPickAttackX(pid){
+  const thr = aiThreats(pid); let best = null, bs = 0.2;
+  for (const t of owned(pid)){
+    const f = S.t[t.id]; if (f.a < 3) continue;
+    const others = byId[t.id].adj.filter(n => S.t[n].o !== pid);
+    for (const nid of meleeTargets(t.id)){
+      const sim = simAttack(t.id, nid, 0); if (!sim.win) continue;
+      const v = aiTargetValue(nid, pid, thr), safe = simAttack(t.id, nid, 0, true).win, ratio = (f.a-1)/Math.max(1, S.t[nid].a);
+      if (!safe && !(ratio >= 1.25 || (v >= 18 && ratio >= 1.1))) continue;
+      let s = v + sim.dLoss*0.3 - sim.aLoss*0.6 + (S.conquered ? 0 : 3);
+      const rest = others.filter(n => n !== nid);
+      if (rest.length){ const eMax = Math.max(...rest.map(n => S.t[n].a)), remain = Math.ceil(sim.left/2); s -= Math.max(0, eMax*1.1 - remain)*0.25*(f.cap ? 2 : 1); }
+      if (s > bs){ bs = s; best = {from:t.id, to:nid}; }
+    }
+  }
+  return best;
+}
+function aiPickReinforceX(pid){
+  const sup = supplied(pid), mine = owned(pid).filter(t => sup.has(t.id)); if (!mine.length) return null;
+  const border = mine.filter(t => hasEnemyNeighbor(t.id, pid)); if (!border.length) return mine[rnd(mine.length)].id;
+  const thr = aiThreats(pid), left = Math.max(1, S.reinf); let best = null, bs = -1e9, bq = 1;
+  for (const t of border){
+    const f = S.t[t.id];
+    for (const nid of meleeTargets(t.id)){
+      const v = aiTargetValue(nid, pid, thr); let x = 0;
+      for (; x <= 30; x++){ const s = simAttack(t.id, nid, x, true); if (s.win && s.left >= 2) break; }
+      if (x > 30) continue;
+      const sc = v/(x + 2) + f.a*0.08;
+      if (sc > bs){ bs = sc; best = t.id; bq = Math.max(1, Math.min(x, left)); }
+    }
+    const eMax = Math.max(0, ...byId[t.id].adj.filter(n => S.t[n].o !== pid).map(n => S.t[n].a)), need = eMax*1.15 - f.a;
+    if (need > 0){
+      const worth = (f.cap ? 9 : 2) + (S.rich[t.id]|0) + (t.id === S.mine ? 8 : 0), give = Math.min(Math.ceil(need), left);
+      const sc = worth*Math.min(1, need/4)/(give + 2)*1.3;
+      if (sc > bs){ bs = sc; best = t.id; bq = Math.max(1, give); }
+    }
+  }
+  if (best == null){ best = border.sort((a,b) => byId[b.id].adj.filter(n => S.t[n].o !== pid).length - byId[a.id].adj.filter(n => S.t[n].o !== pid).length)[0].id; bq = Math.ceil(left/2); }
+  S._aiQty = bq; return best;
+}
+async function aiBuyX(pid, ok){
+  const p = S.p[pid], sup = supplied(pid), mine = owned(pid).filter(t => sup.has(t.id));
+  const front = mine.filter(t => hasEnemyNeighbor(t.id, pid)).sort((a,b) => S.t[b.id].a - S.t[a.id].a);
+  let n = 0;
+  while (n++ < 6 && front.length){
+    const coin = p.coin|0, cap = mine.find(t => S.t[t.id].cap), top = front[0], tt = S.t[top.id]; let did = false;
+    const capThreat = cap ? Math.max(0, ...byId[cap.id].adj.filter(x => S.t[x].o !== pid).map(x => S.t[x].a)) : 0;
+    if (cap && coin >= 6 && !S.t[cap.id].fort && capThreat >= S.t[cap.id].a*0.6) did = !buy(pid, cap.id, 'fort');
+    else if (coin >= 20 && cannonCount(pid, true) < 1 && tt.a >= 5) did = !buy(pid, top.id, 'cn');
+    else { const up = aiPickUpgrade(pid, top.id);
+      if (up && coin >= specCost(pid, up)) did = !buy(pid, top.id, up);
+      else if (coin >= 14 && S.merc < 2) did = !buy(pid, top.id, 'merc'); }
+    if (!did) break;
+    render(); await sleep(250); if (!ok()) return false;
+  }
+  return true;
+}
+function aiMoveIn(from, to, pid, movable){
+  const pr = id => byId[id].adj.filter(n => S.t[n].o !== pid).reduce((s,n) => s + S.t[n].a, 0) + (S.t[id].cap ? 6 : 0);
+  const pf = pr(from), pt = pr(to);
+  if (!pf) return movable; if (!pt) return 0;
+  return Math.max(0, Math.min(movable, Math.round(movable*pt/(pf + pt))));
+}
+async function aiTurn(token){
+  const pid = S.cur, p = S.p[pid];
+  const ok = () => S && token===S.token && !S.winner && !S.defeated && S.cur===pid;
+  await sleep(650); if (!ok()) return;
+  const lv = S.level||'normal';
+  while (bestSet(p.hand) && (!isH(lv) || p.hand.length>=4 || tradeValue()>=10)){ doTrade(pid); render(); await sleep(300); if(!ok()) return; }
+  const placed = await aiPlace(pid, ok); if (!placed) return;
+  log(`${p.name} reinforces ${Object.entries(placed).map(([id,m]) => `${byId[id].name} +${m}`).join(', ')}`, pid);
+  if (!(await aiBuy(pid, ok))) return;
+  rec('phase', {to:'attack'});
+  S.phase = 'attack'; render(); await sleep(350); if (!ok()) return;
+  if (!(await aiVolleys(pid, ok))) return;
+  let rounds = 0;
+  while (rounds++ < 60){
+    if (S.reinf>0){ if (!(await aiPlace(pid, ok))) return; }
+    const mv = aiPickAttack(pid); if (!mv) break;
+    let guard = 0, conquered = false;
+    while (S.t[mv.from].a >= 2 && guard++ < 80){
+      const a = S.t[mv.from].a, d = S.t[mv.to].a;
+      if (guard > 1 && lv==='expert'){ if (a < 2 || (d > 1 && !simAttack(mv.from, mv.to, 0).win)) break; }
+      else if (guard > 1 && lv!=='easy' && ((a <= 3 && a < d) || (isH(lv) && a <= 2 && hasEnemyNeighbor(mv.from, pid)))) break;
+      const r = rollAttack(mv.from, mv.to);
+      render(); await sleep(170); if (!ok()) return;
+      if (r.conquered){ conquered = true; break; }
+    }
+    if (S.winner || S.defeated) { render(); return; }
+    if (conquered){
+      const f = S.t[mv.from], t = S.t[mv.to], movable = f.a - 1;
+      if (movable > 0){
+        const toFront = hasEnemyNeighbor(mv.to, pid), fromFront = hasEnemyNeighbor(mv.from, pid);
+        let m = !fromFront ? movable : toFront ? Math.ceil(movable/2) : 0; if (lv==='expert') m = aiMoveIn(mv.from, mv.to, pid, movable);
+        f.a -= m; t.a += m; moveTags(f, t, null, mv.to); mergeRank(f, t, m);
+        if (m > 0) rec('move_in', {from:mv.from, to:mv.to, qty:m, fromAfter:f.a, toAfter:t.a});
+      }
+      render(); await sleep(250); if (!ok()) return;
+    }
+  }
+  rec('phase', {to:'fortify'});
+  if (S.reinf>0){ if (!(await aiPlace(pid, ok))) return; }
+  S.phase = 'fortify'; render(); await sleep(400); if (!ok()) return;
+  const sup = supplied(pid);
+  const interior = owned(pid).filter(t => sup.has(t.id) && !hasEnemyNeighbor(t.id,pid) && S.t[t.id].a >= 2).sort((a,b)=>S.t[b.id].a-S.t[a.id].a)[0];
+  if (interior){
+    const info = reachInfo(interior.id, pid), reach = [...info.keys()].filter(id => hasEnemyNeighbor(id, pid));
+    if (reach.length){
+      const threat = id => { const e = byId[id].adj.filter(n=>S.t[n].o!==pid).map(n=>S.t[n].a); return e.reduce((s,x)=>s+x,0) + (isH(lv) ? 2*Math.max(0,...e) : 0) - S.t[id].a + (lv==='expert' ? (S.t[id].cap?6:0) + (id===S.mine?4:0) : 0); };
+      reach.sort((a,b)=>threat(b)-threat(a));
+      const m = Math.min(S.t[interior.id].a - 1, info.get(reach[0]).cap);
+      if (m > 0){
+        S.t[interior.id].a -= m; S.t[reach[0]].a += m; S.flash = reach[0]; moveTags(S.t[interior.id], S.t[reach[0]], null, reach[0]); mergeRank(S.t[interior.id], S.t[reach[0]], m);
+        rec('fortify', {from:interior.id, to:reach[0], qty:m, fromAfter:S.t[interior.id].a, toAfter:S.t[reach[0]].a});
+        log(`${p.name} moves ${m} troops to ${byId[reach[0]].name}`, pid);
+        render(); await sleep(450); if (!ok()) return;
+      }
+    }
+  }
+  endTurn();
+}
+
+/* ---------- human actions ---------- */
+function toast(t){ UI.msg = t; render(); }
+function clickT(id){
+  if (!S || S.winner || S.defeated || S.p[S.cur].ai || S.pending) return;
+  UI.msg = '';
+  const me = S.cur, t = S.t[id];
+  if (S.phase === 'reinforce'){
+    if (t.o !== me) return toast('Place troops on your own territories.');
+    if (S.p[me].hand.length >= 5) return toast('You hold 5 cards. Trade a set first.');
+    if (!supplied(me).has(id)) return toast(`${byId[id].name} is cut off from your capital. Reconnect it first (a Fleet on a lane endpoint also links land).`);
+    const mode = UI.mode || 'troop';
+    if (mode === 'troop'){
+      if (S.reinf <= 0) return toast('All troops are placed. Buy upgrades with coin or begin your attack.');
+      const n = Math.min(S.reinf, UI.place === 'all' ? S.reinf : UI.place);
+      t.a += n; S.reinf -= n; S.flash = id;
+      rec('place', {terr:id, qty:n, after:t.a, left:S.reinf});
+      return render();
+    }
+    const err = buy(me, id, mode); if (err) return toast(err);
+    return render();
+  } else if (S.phase === 'attack'){
+    if (t.o === me){
+      if (t.a >= 2 || t.ac > 0 || t.fl > 0){ UI.sel = id; UI.tgt = null; render(); }
+      else toast(`${byId[id].name} needs at least 2 troops to attack.`);
+    } else if (UI.sel && (canHit(UI.sel, id) || canVolley(UI.sel, id))){ UI.tgt = id; render(); }
+    else toast('Pick an adjacent enemy territory, or one a volley or a lane assault can reach.');
+  } else if (S.phase === 'fortify'){
+    if (t.o !== me) return toast('Fortify moves stay inside your own territory.');
+    UI.mv = {}; UI.cn = false;
+    const sup = supplied(me);
+    if (!UI.fSel || id === UI.fSel){
+      if (id === UI.fSel){ UI.fSel = null; UI.fTo = null; }
+      else if (!sup.has(id)) return toast('That territory is cut off from your capital, so it cannot send troops.');
+      else if (t.a >= 2){ UI.fSel = id; UI.fTo = null; UI.fAmt = t.a - 1; }
+      else return toast('Pick a territory with at least 2 troops to move from.');
+    } else if (reachable(UI.fSel, me).has(id)){ UI.fTo = id; UI.fAmt = Math.min(UI.fAmt, S.t[UI.fSel].a-1) || 1; }
+    else if (t.a >= 2 && sup.has(id)){ UI.fSel = id; UI.fTo = null; UI.fAmt = t.a - 1; }
+    else return toast(`That territory is out of fortify range (${fortRange(me)} links) or not connected.`);
+    render();
+  }
+}
+function humanRoll(blitz){
+  if (!UI.sel || !UI.tgt) return;
+  if (!canHit(UI.sel, UI.tgt) || S.t[UI.sel].a < 2) return toast('Melee attacks need an adjacent target (or a lane with a Fleet) and 2 or more troops. Archers and Fleets can fire a volley instead.');
+  let guard = 0;
+  while (true){
+    const r = rollAttack(UI.sel, UI.tgt);
+    if (r.conquered || S.winner || S.defeated) break;
+    if (!blitz || S.t[UI.sel].a < 2 || guard++ > 300) break;
+  }
+  if (S.t[UI.sel] && (S.t[UI.sel].o !== S.cur || S.t[UI.sel].a < 2)) UI.sel = null;
+  if (UI.tgt && S.t[UI.tgt].o === S.cur) UI.tgt = null;
+  if (!UI.sel) UI.tgt = null;
+  render();
+}
+function onAction(act){
+  if (!S || S.p[S.cur].ai) return;
+  UI.msg = '';
+  if (act.startsWith('mode-')){ UI.mode = act.slice(5); return render(); }
+  switch (act){
+    case 'p1': UI.place = 1; UI.mode = 'troop'; break;
+    case 'p5': UI.place = 5; UI.mode = 'troop'; break;
+    case 'pall': UI.place = 'all'; UI.mode = 'troop'; break;
+    case 'trade': doTrade(S.cur); break;
+    case 'begin': rec('phase', {to:'attack'}); S.phase = 'attack'; UI.sel = UI.tgt = null; break;
+    case 'roll': return humanRoll(false);
+    case 'blitz': return humanRoll(true);
+    case 'clear': UI.sel = UI.tgt = null; break;
+    case 'confirmextra': {
+      const {from, to} = S.pending, f = S.t[from], m = Math.min(UI.extra, f.a-1), lane = !byId[from].adj.includes(to);
+      const mm = lane ? Math.min(m, Math.max(0, 5*(f.fl|0) - S.t[to].a)) : m;
+      f.a -= mm; S.t[to].a += mm; moveTags(f, S.t[to], UI.mv, to); mergeRank(f, S.t[to], mm); UI.mv = {};
+      if (UI.cn && !lane) moveCannons(f, S.t[to]);
+      UI.cn = false; S.pending = null;
+      if (S.forced){ S.forced = false; S.phase = 'reinforce'; rec('phase', {to:'reinforce'}); }
+      if (mm > 0) rec('move_in', {from, to, qty:mm, fromAfter:f.a, toAfter:S.t[to].a});
+      UI.sel = f.a >= 2 ? from : null; UI.tgt = null; break;
+    }
+    case 'toFort': rec('phase', {to:'fortify'}); S.phase = 'fortify'; UI.sel = UI.tgt = null; UI.fSel = UI.fTo = null; break;
+    case 'fort': {
+      const me = S.cur, f = S.t[UI.fSel], info = reachInfo(UI.fSel, me).get(UI.fTo), to = S.t[UI.fTo];
+      const m = Math.min(UI.fAmt, f.a-1, info ? info.cap : 1e9);
+      if (m < 1) break;
+      if (UI.cn){
+        if (!(f.cn||[]).some(c => !c.mv)) return toast('That cannon already moved this turn.');
+        const hitched = (UI.mv.cv|0) > 0, dist = landDist(UI.fSel, UI.fTo, me);
+        if (dist > (hitched ? 2 : 1)) return toast(hitched ? 'A cannon hitched to Cavalry moves 2 links over land.' : 'A cannon alone moves 1 link over land. Hitch it to Cavalry (move a Cavalry too) for 2.');
+      }
+      f.a -= m; to.a += m; moveTags(f, to, UI.mv, UI.fTo); mergeRank(f, to, m);
+      if (UI.cn){ moveCannons(f, to); if ((UI.mv.cv|0) > 0) to.cvx = 1; }
+      UI.mv = {}; UI.cn = false;
+      rec('fortify', {from:UI.fSel, to:UI.fTo, qty:m, fromAfter:f.a, toAfter:to.a});
+      log(`You moved ${m} troops from ${byId[UI.fSel].name} to ${byId[UI.fTo].name}`, 0);
+      return endTurn();
+    }
+    case 'volley': {
+      if (!UI.sel || !UI.tgt) break;
+      const f = S.t[UI.sel];
+      let kind = null;
+      if (f.ac>0 && !S.fired[UI.sel] && within2(UI.sel).has(UI.tgt)) kind = 'ac';
+      else if (f.fl>0 && !S.firedF[UI.sel] && fleetTargets(UI.sel).has(UI.tgt)) kind = 'fl';
+      if (!kind) return toast('No archers or Fleet there can fire at that target this turn.');
+      volley(UI.sel, UI.tgt, kind); break;
+    }
+    case 'end': return endTurn();
+  }
+  render();
+}
+
+/* ---------- rendering ---------- */
+function mapSVG(){
+  const me = S ? S.cur : -1, human = S && !S.p[me].ai && !S.winner && !S.defeated;
+  let h = '';
+  for (const hl of HULLS) h += `<polygon points="${hl.pts}" fill="${CONT[hl.k].col}" stroke="${CONT[hl.k].col}" stroke-width="78" stroke-linejoin="round" opacity=".2"/>`;
+  for (const e of EDGES){
+    const [a,b] = e.split('-'), A = byId[a], B = byId[b];
+    h += `<line x1="${A.x}" y1="${A.y}" x2="${B.x}" y2="${B.y}" stroke="var(--muted)" stroke-width="1.6" opacity=".55"/>`;
+  }
+  LANES.forEach(([a,b]) => { const A = byId[a], B = byId[b]; h += `<line x1="${A.x}" y1="${A.y}" x2="${B.x}" y2="${B.y}" stroke="#3b8fd1" stroke-width="2.4" stroke-dasharray="2 7" stroke-linecap="round" opacity=".9"/>`; });
+  if (!S) return h;
+  const reachSet = (human && S.phase==='fortify' && UI.fSel) ? reachable(UI.fSel, me) : new Set();
+  const sup = (human && S.phase==='reinforce') ? supplied(me) : new Set();
+  for (const t of TER){
+    const st = S.t[t.id], o = st.o;
+    let ring = '', hint = '';
+    if (human && !S.pending){
+      if (S.phase==='reinforce' && o===me && sup.has(t.id)) hint = 'var(--accent)';
+      if (S.phase==='attack'){
+        if (!UI.sel && o===me && (st.a>=2 || st.ac>0 || st.fl>0)) hint = 'var(--accent)';
+        if (UI.sel && o!==me && canVolley(UI.sel, t.id)) hint = 'var(--p3)';
+        if (UI.sel && o!==me && canHit(UI.sel, t.id)) hint = 'var(--danger)';
+      }
+      if (S.phase==='fortify'){
+        if (!UI.fSel && o===me && st.a>=2) hint = 'var(--accent)';
+        if (reachSet.has(t.id)) hint = 'var(--ok)';
+      }
+    }
+    if (hint) ring += `<circle r="33" fill="none" stroke="${hint}" stroke-width="2.4" stroke-dasharray="5 4"/>`;
+    if (UI.sel===t.id || UI.fSel===t.id) ring += `<circle r="32" fill="none" stroke="var(--ink)" stroke-width="3.4"/>`;
+    if (UI.tgt===t.id || UI.fTo===t.id) ring += `<circle r="32" fill="none" stroke="var(--danger)" stroke-width="3.4"/>`;
+    if (S.flash===t.id) ring += `<circle r="30" fill="none" stroke="var(--ink)" stroke-width="9" class="ring-flash"/>`;
+    const spt = SP.filter(x => st[x.k]>0).map(x => x.s + (st[x.k]>1 ? st[x.k] : '')).join(' ') + (st.cn && st.cn.length ? ' K' + (st.cn.length>1 ? st.cn.length : '') : '');
+    const rk = rankOf(st), rich = S.rich[t.id]|0;
+    const bits = [];
+    if (isMtn(t.id)) bits.push('mountain'); if (t.id===S.mine) bits.push('Meridian Mine'); if (st.cap) bits.push('capital'); if (st.fort) bits.push('fort'); if (rk) bits.push('veteran rank '+rk); if (rich) bits.push(rich+' coin per turn'); if (COAST.has(t.id)) bits.push('coastal');
+    const label = `${t.name}${bits.length?' ('+bits.join(', ')+')':''}, held by ${pname(o)}, ${st.a} troops${spt ? ', specialists: '+SP.filter(x => st[x.k]>0).map(x => st[x.k]+' '+x.n).join(', ')+((st.cn&&st.cn.length)?', '+st.cn.length+' cannon':'') : ''}`;
+    const extras = (isMtn(t.id) ? `<path d="M-48,-20 l10,-17 l10,17z" fill="#8a8d92" stroke="var(--ink)" stroke-width="1.5"/>` : '')
+      + (st.cap ? `<text x="30" y="-20" text-anchor="middle" font-size="17" fill="#e3b341" stroke="#0b1318" stroke-width="2.5" paint-order="stroke">★</text>` : '')
+      + (S.winMode==='capitals' && S.caps0 && S.caps0.includes(t.id) && !st.cap ? `<text x="30" y="-20" text-anchor="middle" font-size="16" fill="#e3b341" stroke="#0b1318" stroke-width="2.5" paint-order="stroke">⚑</text>` : '')
+      + (t.id===S.mine ? `<path d="M-30,6 l8,-9 l8,9 l-8,9z" fill="#e3b341" stroke="var(--ink)" stroke-width="1.5"/>` : '')
+      + (st.fort ? `<rect x="24" y="8" width="10" height="10" fill="var(--ink)" opacity=".85"/>` : '')
+      + (rk ? `<text x="-30" y="26" text-anchor="middle" font-size="11" font-weight="700" fill="var(--ink)" stroke="var(--sea)" stroke-width="3" paint-order="stroke">${rk>1?'▲▲':'▲'}</text>` : '')
+      + (spt ? `<text y="-37" text-anchor="middle" font-size="11" font-weight="700" fill="var(--ink)" stroke="var(--sea)" stroke-width="3.5" paint-order="stroke">${spt}</text>` : '')
+      + (rich ? `<text y="56" text-anchor="middle" font-size="10" fill="#c99a1c" stroke="var(--sea)" stroke-width="3" paint-order="stroke">${'●'.repeat(rich)}</text>` : '');
+    h += `<g transform="translate(${t.x} ${t.y})" data-id="${t.id}" tabindex="0" role="button" aria-label="${label}" style="cursor:pointer">
+      <title>${label}</title>${ring}
+      <circle r="25" style="fill:${pc(o)}" stroke="var(--bg)" stroke-width="2.5"/>
+      <text y="6" text-anchor="middle" font-size="17" font-weight="700" fill="#fff" stroke="#0b1318" stroke-width="3" paint-order="stroke" style="font-variant-numeric:tabular-nums">${st.a}</text>
+      ${extras}
+      <text y="43" text-anchor="middle" font-size="11.5" font-weight="500" fill="var(--ink)" stroke="var(--sea)" stroke-width="3.5" paint-order="stroke">${t.name}</text>
+    </g>`;
+  }
+  S.flash = null;
+  return h;
+}
+
+const mvHTML = src => { const s = SP.filter(x => src[x.k]>0); return s.length ? `<div class="row"><span>Specialists to move:</span>${s.map(x => `<label>${x.n} <input type="number" data-mv="${x.k}" min="0" max="${src[x.k]}" value="${Math.min(UI.mv[x.k]|0, src[x.k])}" style="width:3.4em"></label>`).join('')}</div>` : ''; };
+function actionsHTML(){
+  const me = S.cur, p = S.p[me];
+  if (S.winner != null || S.defeated || p.ai) return '';
+  const hand = p.hand;
+  if (S.phase === 'reinforce'){
+    const forced = hand.length >= 5, set = bestSet(hand);
+    const modes = [['troop','Troop'], ...SP.map(x => [x.k, `${x.n} ${specCost(me,x.k)}c`]), ['fort','Fort 6c'], ['cn','Cannon 20c'], ['merc','Merc 4c'], ['cap','Capital 10c']];
+    return `<div class="row"><span>Place</span><div class="seg" role="group" aria-label="Troops per click">
+      <button class="btn" data-act="p1" aria-pressed="${UI.place===1 && UI.mode==='troop'}">1</button>
+      <button class="btn" data-act="p5" aria-pressed="${UI.place===5 && UI.mode==='troop'}">5</button>
+      <button class="btn" data-act="pall" aria-pressed="${UI.place==='all' && UI.mode==='troop'}">All</button></div>
+      <span><b>${S.reinf}</b> left</span><span>Coin <b>${p.coin|0}</b>/30</span></div>
+      <div class="row" role="group" aria-label="What to buy">${modes.map(([k,n]) => `<button class="btn ghost" data-act="mode-${k}" aria-pressed="${UI.mode===k}">${n}</button>`).join('')}</div>
+      <div class="row">
+      ${set ? `<button class="btn ghost" data-act="trade">Trade set for ${tradeValue()} troops</button>` : ''}
+      <button class="btn" data-act="begin" ${(S.reinf>0||forced)?'disabled':''}>Begin attack</button></div>`;
+  }
+  if (S.phase === 'attack'){
+    if (S.pending){
+      const f = S.t[S.pending.from], max = f.a-1, lane = !byId[S.pending.from].adj.includes(S.pending.to);
+      const cnOk = !lane && (f.cn||[]).some(c => !c.mv);
+      return `<div class="sl"><label for="extra">Move extra troops into ${byId[S.pending.to].name}: <b id="extraVal">${UI.extra}</b></label>
+        <input type="range" id="extra" min="0" max="${max}" value="${UI.extra}"></div>${mvHTML(f)}
+        ${cnOk ? `<div class="row"><label><input type="checkbox" data-cn="1" ${UI.cn?'checked':''}> Cannon follows (uses its move)</label></div>` : ''}
+        <div class="row"><button class="btn" data-act="confirmextra">Confirm</button></div>`;
+    }
+    const ready = UI.sel && UI.tgt, adj = ready && canHit(UI.sel, UI.tgt) && S.t[UI.sel].a>=2, vol = ready && canVolley(UI.sel, UI.tgt);
+    return `<div class="row">
+      <button class="btn" data-act="roll" ${adj?'':'disabled'}>One round</button>
+      <button class="btn warn" data-act="blitz" ${adj?'':'disabled'}>Fight on</button>
+      <button class="btn ghost" data-act="clear" ${UI.sel?'':'disabled'}>Clear</button><button class="btn ghost" data-act="volley" ${vol?'':'disabled'}>Fire volley</button></div>
+      <div class="row"><button class="btn ghost" data-act="toFort">End attacks</button></div>`;
+  }
+  const ready = UI.fSel && UI.fTo, info = ready ? reachInfo(UI.fSel, me).get(UI.fTo) : null, max = UI.fSel ? Math.max(1, Math.min(S.t[UI.fSel].a-1, info ? info.cap : 1e9)) : 1;
+  const cnOk = UI.fSel && (S.t[UI.fSel].cn||[]).some(c => !c.mv);
+  return `${ready ? `<div class="sl"><label for="famt">Move <b id="famtVal">${Math.min(UI.fAmt,max)}</b> troops from ${byId[UI.fSel].name} to ${byId[UI.fTo].name}</label>
+      <input type="range" id="famt" min="1" max="${max}" value="${Math.min(UI.fAmt,max)}"></div>${mvHTML(S.t[UI.fSel])}
+      ${cnOk ? `<div class="row"><label><input type="checkbox" data-cn="1" ${UI.cn?'checked':''}> Move cannon too (1 link, 2 if Cavalry also moves)</label></div>` : ''}` : ''}
+    <div class="row"><button class="btn" data-act="fort" ${ready?'':'disabled'}>Move and end turn</button>
+    <button class="btn ghost" data-act="end">End turn</button></div>`;
+}
+function hintText(){
+  const p = S.p[S.cur];
+  if (S.winner != null) return `${S.p[S.winner].name} ${winShort()}.`;
+  if (S.defeated) return 'Your armies have fallen.';
+  if (p.ai) return `${p.name} is playing.`;
+  if (S.phase === 'reinforce'){
+    if (p.hand.length >= 5) return 'You hold 5 or more cards. Trade a set before placing troops.';
+    return S.reinf > 0 ? `Click your territories (blue ring = connected to your capital) to place troops. ${S.reinf} remaining. Coin buys upgrades with the buttons below.` : 'All troops are placed. Spend coin if you like, then begin your attack.';
+  }
+  if (S.phase === 'attack'){
+    if (S.pending) return `${byId[S.pending.to].name} is yours. Send more troops in if you want.`;
+    if (!UI.sel) return 'Pick one of your territories with 2 or more troops (or archers or a Fleet).';
+    if (!UI.tgt) return 'Now pick a highlighted enemy territory: red for a melee assault, gold for an archer or Fleet volley.';
+    const f = S.t[UI.sel], d = S.t[UI.tgt];
+    if (!canHit(UI.sel, UI.tgt)) return `${byId[UI.tgt].name} cannot be assaulted from here: only a volley can reach it.`;
+    const m = battleMods(UI.sel, UI.tgt, false), st = strengths(UI.sel, UI.tgt, m), r = st.D > 0 ? st.A/st.D : 9;
+    return `${byId[UI.sel].name} (${f.a}) attacks ${byId[UI.tgt].name} (${d.a}). Strength ${st.A.toFixed(1)} vs ${st.D.toFixed(1)}, odds ${r.toFixed(2)} : 1 (${r>=1.5?'favorable':r>=0.9?'even':'poor'}). A defender under 60% of its starting force retreats if it has a friendly neighbor.${m.mods.length ? ' ' + m.mods.join('; ') + '.' : ''}`;
+  }
+  if (!UI.fSel) return `Optional: pick a connected territory with spare troops to move from (range ${fortRange(S.cur)}), or end your turn.`;
+  if (!UI.fTo) return 'Pick a green territory connected through your own land.';
+  return 'Set how many troops to move.';
+}
+function diceHTML(){
+  const d = S.lastDice; if (!d) return '';
+  const dieHTML = (arr, pid) => arr.map(v => `<span class="die" style="background:${pc(pid)}">${v}</span>`).join('');
+  return `<div class="grp"><small>${byId[d.from].name}</small>${dieHTML(d.ar, d.atk)}</div>
+    <div class="grp"><small>${byId[d.to].name}</small>${dieHTML(d.dr, d.def)}</div>
+    <small>${d.volley?'Volley. ':(d.strength?'Strength round. ':'')}Attacker lost ${d.al}, defender lost ${d.dl}${d.mods&&d.mods.length?' ('+d.mods.join('; ')+')':''}</small>`;
+}
+function applyZoom(){
+  const mp = $('#map'), sc = mp.parentNode, vb = MAPS[curMap].vb || [1000,600], Z = UI.zoom || 1;
+  const base = Math.round(vb[0]*(vb[0] > 1000 ? 0.85 : 0.76)), W0 = Math.max(sc.clientWidth || 800, base);
+  mp.setAttribute('viewBox', '0 0 ' + vb[0] + ' ' + vb[1]);
+  if (Math.abs(Z - 1) < 0.001){ mp.style.width = '100%'; mp.style.minWidth = base + 'px'; mp.style.maxWidth = ''; }
+  else { mp.style.width = Math.round(W0*Z) + 'px'; mp.style.minWidth = '0'; mp.style.maxWidth = 'none'; }
+  const tall = Math.abs(Z - 1) > 0.001 || UI.panelHidden;
+  sc.style.maxHeight = tall ? 'calc(100vh - 70px)' : '';
+  sc.classList.toggle('pan', Z > 1.001);
+  $('.layout').classList.toggle('nopanel', !!UI.panelHidden); $('.wrap').classList.toggle('wide', !!UI.panelHidden);
+  $('#zPanel').textContent = UI.panelHidden ? 'Show panel' : 'Hide panel';
+}
+function zoomBy(f, cx, cy){
+  const mp = $('#map'), sc = mp.parentNode, r = sc.getBoundingClientRect();
+  cx = cx == null ? r.left + r.width/2 : cx; cy = cy == null ? r.top + r.height/2 : cy;
+  const fx = (sc.scrollLeft + cx - r.left)/mp.clientWidth, fy = (sc.scrollTop + cy - r.top)/mp.clientHeight;
+  UI.zoom = Math.max(0.35, Math.min(4, (UI.zoom || 1)*f)); applyZoom();
+  sc.scrollLeft = fx*mp.clientWidth - (cx - r.left); sc.scrollTop = fy*mp.clientHeight - (cy - r.top);
+}
+function fitMap(){
+  const mp = $('#map'), sc = mp.parentNode, vb = MAPS[curMap].vb || [1000,600];
+  const base = Math.round(vb[0]*(vb[0] > 1000 ? 0.85 : 0.76)), W0 = Math.max(sc.clientWidth || 800, base);
+  const availH = window.innerHeight - sc.getBoundingClientRect().top - 24 + window.scrollY*0, wFit = Math.min(sc.clientWidth, availH*vb[0]/vb[1]);
+  UI.zoom = Math.max(0.35, Math.min(1, wFit/W0)); applyZoom(); sc.scrollLeft = 0; sc.scrollTop = 0;
+}
+function render(){
+  const focusId = document.activeElement && document.activeElement.getAttribute && document.activeElement.getAttribute('data-id');
+  applyZoom();
+  $('#map').innerHTML = mapSVG();
+  if (focusId){ const g = $(`#map [data-id="${focusId}"]`); if (g) g.focus({preventScroll:true}); }
+  const lg = $('#legend');
+  lg.innerHTML = Object.keys(CONT).map(k => {
+    const own = S ? S.p.find(p => TER.filter(t=>t.c===k).every(t => S.t[t.id].o===p.id)) : null;
+    return `<span><i style="background:${CONT[k].col}"></i>${CONT[k].name} <em>+${CONT[k].bonus}</em> <small>(${CONT[k].size} terr, ${CONT[k].entries} entries)</small>${own ? ` held by ${own.name}` : ''}</span>`;
+  }).join('') + (S ? '<span><i style="background:#8a8d92"></i>Mountain: defender +25%</span><span>G Guard · C Cavalry · S Sappers · R Archers · F Fleet · K Cannon</span><span>★ capital · ◆ Meridian Mine · ● coin per turn · dotted blue = sea lane</span>' : '');
+  if (!S){ showSetup(); return; }
+  const p = S.p[S.cur];
+  $('#turnbar').innerHTML = S.winner != null ? '<b>Game over</b>' : `Round <b>${S.round}</b> · <b>${p.name}</b> · ${S.phase[0].toUpperCase()+S.phase.slice(1)} · Seed <b>${S.seed||'-'}</b> · AI ${S.level||'normal'}`;
+  $('#goal').textContent = goalText();
+  $('#players').innerHTML = S.p.filter(q => !q.neutral).map(q => {
+    const ts = owned(q.id), troops = ts.reduce((s,t)=>s+S.t[t.id].a, 0);
+    return `<li class="pl ${S.cur===q.id?'active':''} ${q.alive?'':'dead'}"><span class="sw" style="background:var(--p${q.id})"></span><span class="pn">${q.name}</span><span class="pm">${ts.length} territories · ${troops} troops · ${q.hand.length} cards · ${q.coin|0} coin</span><span class="pm">${q.trait ? TRAITS.S[q.trait.s].n + ' / ' + TRAITS.W[q.trait.w].n : ''}${S.vic[q.id] ? ' · control ' + S.vic[q.id] + '/2' : ''}</span></li>`;
+  }).join('');
+  const names = ['Reinforce','Attack','Fortify'], keys = ['reinforce','attack','fortify'];
+  $('#steps').innerHTML = names.map((n,i) => `<div class="${S.phase===keys[i]?'on':''}">${n}</div>`).join('');
+  $('#hint').textContent = hintText(); $('#resBtn').hidden = !(S.winner != null || S.defeated); $('#sqBtn').hidden = false; $('#map').setAttribute('aria-label', `Map of ${TER.length} territories: ${MAPS[curMap].name}`);
+  $('#msg').textContent = UI.msg;
+  $('#actions').innerHTML = actionsHTML();
+  const dBox = $('#diceBox'); dBox.hidden = !S.lastDice; $('#dice').innerHTML = diceHTML();
+  const hand = S.p[0].hand;
+  $('#hand').innerHTML = hand.length ? hand.map(c => `<span class="card ${c.k===3?'wild':''}"><b>${KINDS[c.k]}</b>${c.t ? ' · '+byId[c.t].name : ''}</span>`).join('')
+    : '<span style="color:var(--muted)">None yet. Capture a territory each turn to earn one.</span>';
+  $('#log').innerHTML = S.log.slice(-40).reverse().map(l => `<li><i style="background:${l.pid>=0?pc(l.pid):'var(--muted)'}"></i><span>${l.msg}</span></li>`).join('');
+  if (S.winner != null || S.defeated){
+    if (!S.endLogged){
+      S.endLogged = true;
+      rec('game_end', {winner:S.winner, winnerName:S.winner != null ? S.p[S.winner].name : null, humanEliminated:S.defeated, board:snap()});
+      if (window.MoveRecorder) { try { window.MoveRecorder.end(); } catch (e) {} }
+    }
+    if (!S.endShown){ S.endShown = true; showEnd(); }
+  }
+  scheduleSave();
+}
+function showSetup(){
+  const o = $('#overlay'); o.hidden = false; $('#dlg').classList.remove('wide'); $('#resBtn').hidden = true; $('#sqBtn').hidden = true;
+  const gs = idxGet();
+  const saved = gs.length ? `<p><b>Saved games</b> (autosaved in this browser)</p><div class="saved">${gs.map(x => `<div class="srow"><span><b>Game ${x.n}</b> · ${x.mapName} · ${x.opp+1} players · round ${x.round} · ${x.status === 'finished' ? x.result : 'in progress'}</span><span class="row"><button class="btn" data-resume="${x.id}">${x.status === 'finished' ? 'Open results' : 'Resume'}</button><button class="btn ghost" data-del="${x.id}">Delete</button></span></div>`).join('')}</div><div class="row"><button class="btn ghost" data-xlsx="1">Download all games (.xlsx, one tab per game)</button></div><p><b>New game</b></p>` : '';
+  $('#dlg').innerHTML = `<h2>Iron Meridian</h2><div class="row"><button class="btn ghost" type="button" data-acct="1">${window.IMAuth ? window.IMAuth.label() : 'Account'}</button></div>${saved}
+    <p>Choose a map, then your opposition.</p>
+    <div class="seg" role="group" aria-label="Map">${Object.keys(MAPS).map(k => `<button class="btn" type="button" data-pickmap="${k}" aria-pressed="${k===curMap}">${MAPS[k].short}</button>`).join('')}</div>
+    <p>${MAPS[curMap].blurb}</p>
+    <p>AI level for all opponents</p>
+    <div class="seg" role="group" aria-label="AI level">${['easy','normal','hard','expert'].map(k => `<button class="btn" type="button" data-diff="${k}" aria-pressed="${UI.level===k}">${k[0].toUpperCase()+k.slice(1)}</button>`).join('')}</div>
+    <p>${{easy:'Easy: attacks at any odds, fights on until its stacks are nearly gone, reinforces at random.',normal:'Normal: the standard AI.',expert:'Expert: simulates every battle before it attacks (assuming bad dice), masses troops where a win is certain, hunts the leader whoever it is, plays for the victory mode, and never wastes troops. No hidden bonuses.',hard:'Hard: attacks only at about 2 to 1, stops before a border is left on 1 troop, reinforces the biggest threat.'}[UI.level]}</p>
+    <p>Victory mode</p>
+    <div class="seg" role="group" aria-label="Victory mode">${[['majority','Majority Conquest'],['capitals','Conquered Capitals'],['total','Total Domination']].map(([k,n]) => `<button class="btn" type="button" data-mode="${k}" aria-pressed="${(UI.winMode||'majority')===k}">${n}</button>`).join('')}</div>
+    <p>${{majority:'Majority Conquest: hold 70% of the map when a round ends. Others get a full round to take something back.',capitals:'Conquered Capitals: hold every nation\'s starting capital (flag), your own included, at the same moment. Captured capitals stay marked.',total:'Total Domination: eliminate every rival.'}[UI.winMode||'majority']}</p>
+    <label class="row">Seed <input class="seed" id="seedIn" placeholder="random" value="${UI.seedIn||''}"><small>Same seed = same deal, turn order and mountains.</small></label>
+    <div class="row"><button class="btn ghost" type="button" data-manual="1">Field manual</button></div>
+    <div class="row"><button class="btn" data-start="1">1 opponent</button><button class="btn" data-start="2">2 opponents</button><button class="btn" data-start="3">3 opponents</button></div>
+    <p id="dlmsg" role="status"></p>`;
+}
+const MANUAL = [
+['What is new in version 3', `<p>This version changes the war itself. Open each heading below for the rule.</p><ul><li>Battles are strength-based rounds with retreat, not single dice.</li><li>Everyone starts with a contiguous homeland and a capital; supply flows from the capital.</li><li>A neutral Meridian Mine sits at the centre of the map and pays coin.</li><li>Every nation gets a random strength and weakness from the seed.</li><li>Coin (kill bounties, rich land, capital, mine) buys quality; cards still buy bodies.</li><li>Veterans, cannons, a navy with sea lanes, a +2 catch-up and a control victory are new.</li></ul>`],
+['Battles, strength and retreat', `<p>Attacker strength = (troops in the attacking territory - 1) x (1 + bonus). Defender strength = troops x (1 + bonus). Bonuses add up and are capped at +60%. The hint under the map shows both numbers and the odds before you roll.</p><ul><li><b>Each round</b> both sides roll 2d6, turned into a factor from 0.8 to 1.2. Each side loses max(1, 10% of the enemy strength x its factor, rounded). Press <b>One round</b> or <b>Fight on</b>; you can stop after any round.</li><li><b>Retreat:</b> when the defender is below 60% of the force it started the battle with and has a friendly neighbouring territory, it breaks. The attacker takes the territory, the defender's survivors walk to the neighbour, and the winner gets 1 or 2 pursuit kills. With nowhere to go a defender fights to the end.</li><li><b>Bonuses:</b> mountain +25% defender; capital fortress +30%; fort +20%; veteran +10% or +20%; cavalry charge +25% attacker (first assault per turn from a territory, never into mountains, cancelled by defending cavalry); amphibious landing -15%; harbor defense +25%. Sappers in a stack of 4+ cancel the mountain.</li><li><b>Guards</b> absorb 2 casualties each per enemy turn. Cannon Armor absorbs 4. A territory absorbs at most 8 per enemy turn. Absorbed casualties are not deaths and pay no bounty.</li></ul>`],
+['Homelands, capitals and supply', `<p>Territories are dealt as connected homelands grown from far-apart seeds. Each nation's capital is the homeland territory with the fewest enemy neighbours and starts with 2 Guards that sit outside the specialist cap.</p><ul><li><b>Supply:</b> you can only place troops on, or fortify from, territories linked to your capital through your own land (and sea lanes where one end holds a Fleet).</li><li><b>Fortify range</b> is 3 links (5 for Striders, 2 for Slow Roads).</li><li><b>Capital captured:</b> the captor loots 25% of your coin, your capital Guards die, and next turn a new capital is named on your strongest territory while your reinforcements are halved. Moving a capital by choice costs 10 coin.</li></ul>`],
+['The Meridian Mine', `<p>One neutral mountain territory on the map's centre starts with 10 troops and a Guard. Whoever holds it gains 5 coin per turn and it is needed for the control victory. The AI fights harder over it and gangs up on its holder.</p>`],
+['Nation traits', `<p>The seed gives every nation one strength and one weakness on different axes, and no two nations share a strength. They show under each commander. Strengths: Levy (+4 starting troops, base floor 4), Bulwark (capital +45%, cheaper Guards), Highlander (mountains +40%, 2 extra home mountains), Strider (fortify 5, volleys 3 links). Weaknesses: Conscripts (-3 starting troops), Open Capital (1 Guard), Lowlander (-10% into mountains), Slow Roads (fortify 2).</p>`],
+['Coin: income and spending', `<p>Coin is public and capped at 30. Income each turn: rich territories (1 to 3, marked with dots), your capital (2), the Mine (5). Kills pay half the victim's value, rounded up: 1 coin for troops and Guards, 2 for Cavalry, Sappers, Archers and Fleets. Eliminating a player gives you their coin.</p><ul><li>Spend only in your own Reinforce step with the buy buttons, then click a connected territory.</li><li><b>Specialist upgrade</b> converts an existing troop: Guard 2, Cavalry/Sappers/Archers/Fleet 4. Limit 1 per 5 troops, rounded up.</li><li><b>Fort</b> 6: +20% defense, lost on capture. <b>Mercenary</b> 4 (max 2 a turn). <b>Capital move</b> 10. <b>Cannon</b> 20.</li><li>Cards stay manpower: capture a territory each turn for a card and trade sets for troops.</li></ul>`],
+['Specialists', `<p>Specialists are tagged troops. They die last and are lost if the territory falls (except what a retreating force carries).</p><ul><li><b>Guard (G):</b> absorbs 2 casualties per enemy turn.</li><li><b>Cavalry (C):</b> charge +25% on the first assault per turn; defending cavalry cancels an enemy charge.</li><li><b>Sappers (S):</b> in a stack of 4+ they cancel the defender's mountain bonus.</li><li><b>Archers (R):</b> one volley per territory per turn at an enemy 1 or 2 links away (3 for Striders): 1 die each, strictly higher kills 1, mountains add +1, never the last troop, cannot capture.</li><li><b>Fleet (F):</b> coastal only. See Navy.</li></ul>`],
+['Cannons', `<p>Cost 20 coin. Each nation can hold 1 cannon of its own and 1 captured cannon. A cannon needs 3 troops in its territory to fire.</p><ul><li><b>Salvo:</b> before the first melee round it kills about 4 troops (3 to 5; -1 against a mountain), never the last troop. It fires once when you assault from its territory and once when it is assaulted.</li><li><b>Armor:</b> absorbs 4 casualties per enemy turn (shared with Guards under the cap of 8). If all Armor is used up the cannon is overrun and silent until its owner's next turn. If the attacker then takes the territory, the cannon is captured. A captor already holding a captured cannon salvages it for 10 coin.</li><li><b>Moving:</b> alone 1 link per turn over land during Fortify; 2 links when a Cavalry moves with it (the Cavalry loses its charge that turn). It can follow troops into a conquered territory. It cannot cross sea lanes. A broken force carries its cannon away.</li></ul>`],
+['Navy, coasts and sea lanes', `<p>Coastal territories can carry a Fleet. Dotted blue lines are sea lanes between coastal territories.</p><ul><li><b>Amphibious assault:</b> a territory with a Fleet can attack the coastal territory at the other end of a lane (not a mountain): -15%, no cavalry charge, at most 5 troops per Fleet, and the stack drops one veteran rank.</li><li><b>Harbor defense:</b> a defender with a Fleet gets +25% against landings.</li><li><b>Bombardment:</b> one Fleet volley per territory per turn at a coastal enemy 1 land link away or across a lane.</li><li><b>Naval fortify and supply:</b> a lane works as a link only while one end holds a Fleet; fortify across a lane carries at most 5 troops per Fleet.</li></ul>`],
+['Veterans', `<p>A territory earns a win by capturing, or by holding when the attacker is spent, against a force at least half its size. 2 wins = rank 1 (+10%), 4 wins = rank 2 (+20%). A retreat drops one rank, capture removes all rank, and rank travels with the larger stack when troops merge. Shown as triangles on the map.</p>`],
+['Victory and catch-up', `<p>Pick one of three victory modes at setup. <b>Majority Conquest:</b> hold 70% of all territories when a round ends. <b>Conquered Capitals:</b> hold every nation's starting capital (marked with a flag) at the same time, including your own. <b>Total Domination:</b> eliminate every rival. Catch-up:  The nation with the fewest territories gets +2 reinforcements (needs 3 or more nations alive).</p>`],
+['Seed and AI levels', `<p>The seed fixes the deal, capitals, mine, mountains, rich land, traits and turn order. Dice are still random. AI levels (Easy, Normal, Hard) change skill only and nobody cheats; all of them now buy with coin and avoid cut-off supply.</p><p><b>Expert</b> plays the victory mode you chose, simulates each battle with unlucky dice before attacking, masses its reinforcements where a win is certain, targets whoever is closest to winning (not you in particular) and spends coin on forts, cannons and specialists.</p>`],
+['Log, snapshots and luck', `<p>The move log, report, JSON, CSV and workbook now record strength rounds, retreats, income, purchases and capital events, plus board snapshots with markers (* capital, f fort, v veteran, K cannon). Kill luck compares troops killed with the expected casualties per round (approximate; cannon salvos are not predicted). Games saved under the old rules cannot be resumed.</p>`]
+];
+function showManual(){
+  $('#overlay').hidden = false; const d = $('#dlg'); d.classList.add('wide');
+  d.innerHTML = `<h2>Field manual</h2><p>What is new in this version and how to use it. Tap a heading to open it.</p>` + MANUAL.map((m,i) => `<details ${i===0?'open':''}><summary>${m[0]}</summary>${m[1]}</details>`).join('') + `<div class="row"><button class="btn" data-closeman="1">Close</button></div>`;
+}
+function showEnd(){
+  const o = $('#overlay'); o.hidden = false; $('#dlg').classList.remove('wide');
+  const won = S.winner === 0, MR = window.MoveRecorder, sm = MR && MR.summary();
+  const tbl = sm ? `<table class="sumt"><tr><th>Player</th><th>Terr</th><th>Troops</th><th>Killed</th><th>Lost</th><th>Captured</th><th>Kill luck</th><th>Loss luck</th></tr>${sm.players.filter(q => !(S.p[q.pid] && S.p[q.pid].neutral)).map(q => `<tr><td>${q.name}</td><td>${q.final_territories}</td><td>${q.final_troops}</td><td>${q.troops_killed_total}</td><td>${q.troops_lost_total}</td><td>${q.territories_captured}</td><td>${sg(q.kill_luck)}</td><td>${sg(q.loss_luck)}</td></tr>`).join('')}</table>` : '';
+  $('#dlg').innerHTML = `<h2>${won ? 'You rule the world' : S.winner != null ? `${S.p[S.winner].name} wins` : 'You were eliminated'}</h2>
+    <p>${won ? `${S.altWin ? winLong() : 'Total conquest'} in ${S.round} rounds.` : S.winner != null ? `The game ended in round ${S.round}.` : 'Your last territory has fallen.'}</p>${tbl}${sm ? `<p><small>Seed ${S.seed}. Kill luck is troops killed minus what the dice odds predicted (above 0 = lucky). Loss luck is troops lost minus predicted (below 0 = lucky).</small></p>` : ''}
+    <div class="row"><button class="btn" data-view="1">View my moves</button><button class="btn ghost" data-view="map">View final map</button></div>
+    <div class="row"><button class="btn ghost" data-dl="txt">Download report (.txt)</button><button class="btn ghost" data-dl="json">JSON</button><button class="btn ghost" data-dl="csv">CSV</button><button class="btn ghost" data-xlsx="1">Workbook (.xlsx)</button></div>
+    <p id="dlmsg" role="status">This game is saved automatically and stays in your saved games.</p>
+    <div class="row"><button class="btn" data-start="${S.np-1}">Play again</button><button class="btn ghost" data-menu="1">Change map / opponents</button><button class="btn ghost" data-same="1">Replay this seed</button></div>`;
+}
+/* ---------- autosave, resume, workbook ---------- */
+const lsGet = k => { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } };
+const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { return false; } };
+const idxGet = () => lsGet('im:idx') || [];
+let saveTimer = null;
+function scheduleSave(){ if (S && S.gid){ clearTimeout(saveTimer); saveTimer = setTimeout(saveNow, 1200); } }
+function saveNow(){
+  clearTimeout(saveTimer); saveTimer = null;
+  if (!S || !S.gid) return;
+  const MR = window.MoveRecorder, fin = S.winner != null || S.defeated;
+  const idx = idxGet().filter(x => x.id !== S.gid);
+  idx.unshift({id:S.gid, n:S.n, map:curMap, mapName:MAPS[curMap].name, opp:S.np-1, round:S.round, status:fin ? 'finished' : 'in progress',
+    result:fin ? (S.winner != null ? S.p[S.winner].name + ' won' : 'you were eliminated') : '', ts:Date.now()});
+  const ok = lsSet('im:g:' + S.gid, {S, curMap, rec:MR && MR.dump()}) && lsSet('im:idx', idx);
+  const el = $('#savestat');
+  if (el) el.textContent = ok ? 'Saved ' + new Date().toLocaleTimeString() : 'SAVE FAILED (storage full or blocked): export your game now';
+}
+function saveQuit(){ if (!S) return; saveNow(); S.token = Math.random(); S = null; render(); }
+function resumeGame(id){
+  const d = lsGet('im:g:' + id); if (!d || !d.S) return;
+  if (!d.S.v3){ const mm = $('#dlmsg'); if (mm) mm.textContent = 'That game was saved with the old rules and cannot be resumed. Its exports still work from the workbook.'; return; }
+  loadMap(d.curMap); UI.mapKey = curMap; S = d.S; S.token = Math.random(); S.endShown = false;
+  S.order = S.order || S.p.map(p => p.id); S.mtn = S.mtn || []; S.gabs = S.gabs || {}; S.fired = S.fired || {}; S.charged = S.charged || {}; S.level = S.level || 'normal';
+  Object.values(S.t).forEach(t => SP.forEach(x => { t[x.k] = t[x.k]|0; }));
+  if (window.MoveRecorder && d.rec) window.MoveRecorder.load(d.rec);
+  Object.assign(UI, {sel:null,tgt:null,place:1,extra:0,fSel:null,fTo:null,fAmt:1,msg:'',mode:'troop',mv:{}});
+  $('#overlay').hidden = true; render();
+  if (!S.winner && S.winner !== 0 && !S.defeated && S.p[S.cur].ai) aiTurn(S.token);
+}
+function deleteGame(id){ try { localStorage.removeItem('im:g:' + id); } catch (e) {} lsSet('im:idx', idxGet().filter(x => x.id !== id)); }
+async function exportWorkbook(){
+  saveNow();
+  const list = idxGet().map(m => ({meta:m, rec:(lsGet('im:g:' + m.id) || {}).rec})).filter(g => g.rec).reverse();
+  return window.MoveRecorder.workbook(list);
+}
+window.addEventListener('pagehide', saveNow);
+document.addEventListener('visibilitychange', () => { if (document.hidden) saveNow(); });
+try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch (e) {}
+
+/* ---------- events ---------- */
+$('#map').addEventListener('click', e => { const g = e.target.closest('[data-id]'); if (g) clickT(g.getAttribute('data-id')); });
+$('#map').addEventListener('keydown', e => {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  const g = e.target.closest('[data-id]'); if (g){ e.preventDefault(); clickT(g.getAttribute('data-id')); }
+});
+$('#actions').addEventListener('click', e => { const b = e.target.closest('[data-act]'); if (b && !b.disabled) onAction(b.getAttribute('data-act')); });
+$('#actions').addEventListener('input', e => {
+  if (e.target.dataset && e.target.dataset.mv) UI.mv[e.target.dataset.mv] = +e.target.value;
+  if (e.target.id === 'extra'){ UI.extra = +e.target.value; $('#extraVal').textContent = UI.extra; }
+  if (e.target.id === 'famt'){ UI.fAmt = +e.target.value; $('#famtVal').textContent = UI.fAmt; }
+  if (e.target.dataset && e.target.dataset.cn) UI.cn = e.target.checked;
+});
+$('#overlay').addEventListener('input', e => { if (e.target.id === 'seedIn') UI.seedIn = e.target.value; });
+$('#manBtn').addEventListener('click', () => showManual());
+$('#overlay').addEventListener('click', e => {
+  const t = x => e.target.closest(x);
+  if (t('[data-acct]')) return window.IMAuth && window.IMAuth.open();
+  if (t('[data-resume]')) return resumeGame(t('[data-resume]').getAttribute('data-resume'));
+  if (t('[data-del]')){ const b = t('[data-del]'); if (!b.dataset.armed){ b.dataset.armed = '1'; b.textContent = 'Really delete?'; return; } deleteGame(b.getAttribute('data-del')); return render(); }
+  if (t('[data-xlsx]')){ const m = $('#dlmsg'); m.textContent = 'Building workbook...'; exportWorkbook().then(r => { m.textContent = r.msg; }); return; }
+  if (t('[data-mode]')){ UI.winMode = t('[data-mode]').getAttribute('data-mode'); return render(); }
+  if (t('[data-diff]')){ UI.level = t('[data-diff]').getAttribute('data-diff'); return render(); }
+  if (t('[data-manual]')) return showManual();
+  if (t('[data-closeman]')){ if (!S) return showSetup(); if (S.winner != null || S.defeated) return showEnd(); $('#overlay').hidden = true; return; }
+  if (t('[data-same]')){ UI.seedIn = S.seed; UI.level = S.level; UI.winMode = S.winMode || 'majority'; UI.mapKey = S.map; return newGame(S.np-1, S.map); }
+  if (t('[data-start]')) return newGame(+t('[data-start]').getAttribute('data-start'), UI.mapKey);
+  if (t('[data-pickmap]')){ loadMap(t('[data-pickmap]').getAttribute('data-pickmap')); UI.mapKey = curMap; return render(); }
+  if (t('[data-menu]')){ saveNow(); S = null; return render(); }
+  if (t('[data-view]')){
+    $('#overlay').hidden = true;
+    if (t('[data-view]').getAttribute('data-view') === '1'){ const d = $('#movesDetails'); d.open = true; d.dispatchEvent(new Event('toggle')); $('#movesBox').scrollIntoView({behavior:'smooth', block:'start'}); }
+    return;
+  }
+  if (t('[data-dl]')){ const m = $('#dlmsg'); m.textContent = 'Preparing...'; window.MoveRecorder.download(t('[data-dl]').getAttribute('data-dl')).then(r => { m.textContent = r.msg; }); }
+});
+
+(function initLog(){
+  const MR = window.MoveRecorder, bar = $('#logbar');
+  if (!MR || !bar) return;
+  bar.hidden = false;
+  const stat = $('#logstat');
+  let flashMsg = '';
+  const paint = () => {
+    if (flashMsg){ stat.textContent = flashMsg; return; }
+    const i = MR.info();
+    stat.textContent = `Move log: ${i.moves} moves this game, ${i.mode}`;
+  };
+  MR.init(); MR.onStatus(paint); paint();
+  const run = async fmt => {
+    flashMsg = 'Preparing export...'; paint();
+    let r; try { r = await MR.download(fmt); } catch (e) { r = {msg:'Export failed.'}; }
+    flashMsg = r.msg; paint();
+    setTimeout(() => { flashMsg = ''; paint(); }, 6000);
+  };
+  $('#expJson').addEventListener('click', () => run('json'));
+  $('#expCsv').addEventListener('click', () => run('csv'));
+  $('#expTxt').addEventListener('click', () => run('txt'));
+  $('#resBtn').addEventListener('click', () => showEnd());
+  $('#sqBtn').addEventListener('click', saveQuit);
+  $('#xlsxBtn').addEventListener('click', async () => { flashMsg = 'Building workbook...'; paint(); const r = await exportWorkbook(); flashMsg = r.msg; paint(); setTimeout(() => { flashMsg = ''; paint(); }, 6000); });
+})();
+
+(function movesViewer(){
+  const MR = window.MoveRecorder, box = $('#movesBox');
+  if (!MR || !MR.entries || !box) return;
+  box.hidden = false;
+  const det = $('#movesDetails'), list = $('#mlist'), msg = $('#mmsg'), manual = $('#manual'), ta = $('#manualTa');
+  const selBtn = $('#copySel'), clrBtn = $('#clearSel');
+  const sel = new Set();
+  let fmt = 'text', timer = null, msgTimer = null, lastSel = null, lastGames = -1;
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const say = t => { msg.textContent = t; clearTimeout(msgTimer); msgTimer = setTimeout(() => { msg.textContent = ''; }, 5000); };
+  const byRange = (a, b) => MR.entries().filter(e => e.n >= a && e.n <= b);
+
+  async function copyText(text, label){
+    try {
+      await navigator.clipboard.writeText(text);
+      manual.hidden = true;
+      say(`Copied ${label} as ${fmt === 'json' ? 'JSON' : 'text'}.`);
+    } catch (e) {
+      ta.value = text; manual.hidden = false; ta.focus(); ta.select();
+      say('Automatic copy is blocked here. The text is selected below: press Ctrl+C (Cmd+C on Mac).');
+    }
+  }
+  function update(){
+    selBtn.textContent = `Copy selected (${sel.size})`;
+    selBtn.disabled = clrBtn.disabled = sel.size === 0;
+  }
+  function render(){
+    if (!det.open) return;
+    const games = MR.info().games;
+    if (games !== lastGames){ lastGames = games; sel.clear(); lastSel = null; }
+    const es = MR.entries().filter(e => !$('#mineOnly').checked || e.pid === 0);
+    const atBottom = list.scrollTop + list.clientHeight >= list.scrollHeight - 24, prev = list.scrollTop;
+    if (!es.length){
+      list.innerHTML = '<div class="ml"><span></span><span class="mt">No moves yet. Start a game.</span><span></span></div>';
+      update(); return;
+    }
+    const groups = [];
+    es.forEach(e => {
+      if (!groups.length || e.type === 'turn_start' || e.type === 'game_start') groups.push([]);
+      groups[groups.length - 1].push(e);
+    });
+    list.innerHTML = groups.map(g => {
+      const f = g[0], l = g[g.length - 1];
+      const hdr = f.type === 'game_start' ? 'Setup' : `Round ${f.round} · ${f.player}`;
+      return `<div class="mg"><div class="mgh"><span>${esc(hdr)}</span><button class="mini" type="button" data-grp="${f.n}-${l.n}">Copy turn</button></div>` +
+        g.map(e => `<div class="ml${sel.has(e.n) ? ' sel' : ''}"><input type="checkbox" data-sel="${e.n}" ${sel.has(e.n) ? 'checked' : ''} aria-label="Select move ${e.n}"><span class="mt"><span class="mn">#${e.n}</span> ${esc(e.text)}</span><button class="mini" type="button" data-one="${e.n}" aria-label="Copy move ${e.n}">Copy</button></div>`).join('') +
+        '</div>';
+    }).join('');
+    list.scrollTop = atBottom ? list.scrollHeight : prev;
+    update();
+  }
+  const sched = () => { if (timer) return; timer = setTimeout(() => { timer = null; render(); }, 250); };
+  function setFmt(f){
+    fmt = f;
+    $('#fmtText').setAttribute('aria-pressed', String(f === 'text'));
+    $('#fmtJson').setAttribute('aria-pressed', String(f === 'json'));
+  }
+
+  list.addEventListener('click', e => {
+    const one = e.target.closest('[data-one]'), grp = e.target.closest('[data-grp]'), cb = e.target.closest('[data-sel]');
+    if (one){
+      const n = +one.dataset.one;
+      copyText(MR.format(byRange(n, n), fmt), `move #${n}`);
+    } else if (grp){
+      const [a, b] = grp.dataset.grp.split('-').map(Number);
+      copyText(MR.format(byRange(a, b), fmt), `moves #${a} to #${b}`);
+    } else if (cb){
+      const n = +cb.dataset.sel, on = cb.checked;
+      if (e.shiftKey && lastSel != null){
+        for (let i = Math.min(lastSel, n); i <= Math.max(lastSel, n); i++) on ? sel.add(i) : sel.delete(i);
+      } else { on ? sel.add(n) : sel.delete(n); }
+      lastSel = n; render();
+    }
+  });
+  $('#copyAll').addEventListener('click', () => {
+    const es = MR.entries();
+    if (!es.length) return say('No moves yet.');
+    copyText(MR.format(es, fmt), `all ${es.length} moves`);
+  });
+  selBtn.addEventListener('click', () => {
+    const es = MR.entries().filter(e => sel.has(e.n));
+    if (es.length) copyText(MR.format(es, fmt), `${es.length} selected moves`);
+  });
+  clrBtn.addEventListener('click', () => { sel.clear(); lastSel = null; render(); });
+  $('#fmtText').addEventListener('click', () => setFmt('text'));
+  $('#fmtJson').addEventListener('click', () => setFmt('json'));
+  det.addEventListener('toggle', render); $('#mineOnly').addEventListener('change', render);
+  MR.onStatus(sched);
+})();
+
+(function(){
+  const sc = $('#map').parentNode;
+  $('#zIn').addEventListener('click', () => zoomBy(1.25));
+  $('#zOut').addEventListener('click', () => zoomBy(1/1.25));
+  $('#zFit').addEventListener('click', () => { if (UI.panelHidden) fitMap(); else { UI.zoom = 1; applyZoom(); sc.scrollLeft = 0; sc.scrollTop = 0; } });
+  const togglePanel = () => { UI.panelHidden = !UI.panelHidden; applyZoom(); if (UI.panelHidden) fitMap(); else { UI.zoom = 1; applyZoom(); } };
+  $('#zPanel').addEventListener('click', togglePanel);
+  const toggleFull = () => { try { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen(); } catch (e) {} };
+  $('#zFull').addEventListener('click', toggleFull);
+  sc.addEventListener('wheel', e => { if (e.ctrlKey || e.metaKey){ e.preventDefault(); zoomBy(e.deltaY < 0 ? 1.15 : 1/1.15, e.clientX, e.clientY); } }, {passive:false});
+  let pan = null;
+  sc.addEventListener('pointerdown', e => { if (e.button !== 0 || e.target.closest('[data-id]') || e.target.closest('.mapctl')) return; pan = {x:e.clientX, y:e.clientY, l:sc.scrollLeft, t:sc.scrollTop, moved:false}; });
+  window.addEventListener('pointermove', e => { if (!pan) return; const dx = e.clientX - pan.x, dy = e.clientY - pan.y; if (!pan.moved && Math.hypot(dx,dy) < 4) return; pan.moved = true; sc.classList.add('panning'); sc.scrollLeft = pan.l - dx; sc.scrollTop = pan.t - dy; });
+  window.addEventListener('pointerup', () => { pan = null; sc.classList.remove('panning'); });
+  window.addEventListener('resize', () => { if (S) applyZoom(); });
+  document.addEventListener('keydown', e => {
+    if (e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName) || e.ctrlKey || e.metaKey || e.altKey || !$('#overlay').hidden) return;
+    if (e.key === '+' || e.key === '=') zoomBy(1.25); else if (e.key === '-' || e.key === '_') zoomBy(1/1.25);
+    else if (e.key === '0') $('#zFit').click(); else if (e.key === 'p' || e.key === 'P') togglePanel(); else if (e.key === 'f' || e.key === 'F') toggleFull();
+  });
+})();
+render();
+})();
+</script>
