@@ -1,3 +1,5 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Iron Meridian</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap">
@@ -119,13 +121,17 @@ details p{margin:6px 0 0}
 svg#map{margin:0 auto}
 .mapctl{position:absolute;top:8px;right:22px;display:flex;gap:4px;z-index:5;background:color-mix(in srgb,var(--panel) 88%,transparent);border:1px solid var(--line);border-radius:8px;padding:3px}
 .mapctl .mini{min-width:30px;min-height:28px}
+#ver{font:500 12px var(--fb);color:var(--muted);margin-left:6px;letter-spacing:0}
+#authOverlay{z-index:60}
+.mail{width:100%;font:inherit;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink)}
+#aMsg{min-height:1.4em}
 .dlg.wide{max-width:680px}.dlg details{border-top:1px solid var(--line);padding-top:8px}.dlg details p,.dlg details li{color:var(--ink)}.dlg ul{margin:6px 0 0;padding-left:18px}
 </style>
 
 <div class="wrap">
   <header class="top">
-    <h1>Iron Meridian</h1>
-    <div id="turnbar" aria-live="polite"></div><button class="btn ghost" id="manBtn" type="button">Field manual</button>
+    <h1>Iron Meridian<span id="ver"></span></h1>
+    <div id="turnbar" aria-live="polite"></div><button class="btn ghost" id="manBtn" type="button">Field manual</button><button class="btn ghost" id="acctBtn" type="button">Guest</button>
     <div class="logbar" id="logbar" hidden><span id="logstat" aria-live="polite"></span><button class="btn ghost" id="expJson" type="button">Export JSON</button><button class="btn ghost" id="expCsv" type="button">Export CSV</button><button class="btn ghost" id="expTxt" type="button">Export report</button><button class="btn" id="resBtn" type="button" hidden>Game results</button><button class="btn ghost" id="sqBtn" type="button" hidden>Save &amp; quit</button><button class="btn ghost" id="xlsxBtn" type="button">Export workbook (.xlsx)</button><span id="savestat" aria-live="polite"></span></div>
   </header>
   <div class="layout">
@@ -176,8 +182,111 @@ svg#map{margin:0 auto}
 <div class="overlay" id="overlay">
   <div class="dlg" id="dlg"></div>
 </div>
+<div class="overlay" id="authOverlay" hidden>
+  <div class="dlg" id="authDlg" role="dialog" aria-modal="true" aria-label="Account"></div>
+</div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+/* Accounts. Guest mode always works: nothing in the game waits for this. Only the public (publishable) key lives here. */
+window.IMAuth=(()=>{
+'use strict';
+const VERSION='5.1.0';
+const SB_URL='https://zfqjdosisaomkrvahvtq.supabase.co';
+const SB_KEY='sb_publishable_o0ZcdQVGpNujT7uf6-0wmw_LQDGIR-V';
+const ready=/^https:\/\/[a-z0-9]+\.supabase\.co$/.test(SB_URL);
+const $=s=>document.querySelector(s);
+let sb=null,user=null,prof=null,down=false;
+const timeout=(p,ms)=>Promise.race([p,new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),ms))]);
+const DOWN='Can\'t reach the server right now (the free server may be asleep). You can keep playing as a guest and try again later.';
+
+function label(){
+  if(user) return ((prof&&prof.display_name)||'Commander')+(prof&&prof.role==='creator'?' ★ Creator':'');
+  return ready?'Guest · Sign in':'Guest';
+}
+function paint(){
+  const t=label(); document.querySelectorAll('#acctBtn,[data-acct]').forEach(b=>{ b.textContent=t; });
+}
+async function loadProfile(){
+  prof=null; if(!sb||!user) return;
+  try{
+    const r=await timeout(sb.from('profiles').select('display_name,role').eq('id',user.id).single(),8000);
+    if(r.data){ prof=r.data; down=false; } else if(r.error) down=true;
+  }catch(e){ down=true; }
+  paint(); if(!$('#authOverlay').hidden) openDlg();
+}
+function msg(t){ const m=$('#aMsg'); if(m) m.textContent=t; }
+
+function openDlg(){
+  const o=$('#authOverlay'), d=$('#authDlg'); o.hidden=false;
+  let h='<h2>Account</h2>';
+  if(!ready){
+    h+='<p>Accounts are not switched on in this version yet. You are playing as a guest and everything works as normal.</p>';
+  } else if(user){
+    h+='<p id="aEmail"></p><p id="aRole"></p><p>Name shown on your profile</p><div class="row"><input class="mail" id="aName" maxlength="30" aria-label="Display name" style="flex:1"><button class="btn" id="aSave" type="button">Save name</button></div><div class="row"><button class="btn ghost" id="aOut" type="button">Sign out</button></div>';
+  } else {
+    h+='<p>Playing as a guest works fully. Sign in to keep your record and game history on any device.</p><input class="mail" id="aMail" type="email" autocomplete="email" placeholder="you@example.com" aria-label="Email address"><div class="row"><button class="btn" id="aSend" type="button">Email me a sign-in link</button></div>';
+  }
+  h+='<p id="aMsg" role="status"></p><div class="row"><button class="btn ghost" id="aClose" type="button">'+(user?'Close':'Play as guest')+'</button></div><p><small>Version '+VERSION+'</small></p>';
+  d.innerHTML=h;
+  if(ready&&user){
+    $('#aEmail').textContent='Signed in as '+(user.email||'your account');
+    $('#aRole').textContent=prof&&prof.role==='creator'?'Role: creator ★':'';
+    $('#aName').value=(prof&&prof.display_name)||'';
+  }
+  if(down&&ready) msg(DOWN);
+}
+function closeDlg(){ $('#authOverlay').hidden=true; }
+
+async function sendLink(){
+  const em=(($('#aMail')||{}).value||'').trim();
+  if(!/^\S+@\S+\.\S+$/.test(em)) return msg('Please type a valid email address.');
+  msg('Sending...');
+  try{
+    const r=await timeout(sb.auth.signInWithOtp({email:em,options:{emailRedirectTo:location.origin+location.pathname}}),12000);
+    if(r.error) return msg(/rate|limit|seconds/i.test(r.error.message)?'Too many emails were sent. Wait a little and try again, or keep playing as a guest.':'Could not send the link: '+r.error.message);
+    down=false; msg('Check your email and click the link. It brings you back here, signed in.');
+  }catch(e){ down=true; msg(DOWN); }
+}
+async function saveName(){
+  const v=(($('#aName')||{}).value||'').trim();
+  if(!v||v.length>30) return msg('Name must be 1 to 30 characters.');
+  msg('Saving...');
+  try{
+    const r=await timeout(sb.from('profiles').update({display_name:v}).eq('id',user.id).select('display_name').single(),8000);
+    if(r.error) return msg('Could not save: '+r.error.message);
+    prof=Object.assign({},prof,r.data); paint(); msg('Saved.');
+  }catch(e){ down=true; msg(DOWN); }
+}
+async function signOut(){
+  try{ await timeout(sb.auth.signOut(),8000); }catch(e){}
+  user=null; prof=null; paint(); closeDlg();
+}
+
+function init(){
+  const v=$('#ver'); if(v) v.textContent='v'+VERSION;
+  paint();
+  $('#acctBtn').addEventListener('click',openDlg);
+  $('#authDlg').addEventListener('click',e=>{
+    const id=e.target.id;
+    if(id==='aClose') closeDlg(); else if(id==='aSend') sendLink(); else if(id==='aSave') saveName(); else if(id==='aOut') signOut();
+  });
+  document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&!$('#authOverlay').hidden) closeDlg(); });
+  if(!ready) return;
+  if(!window.supabase){ down=true; return; }
+  try{
+    sb=window.supabase.createClient(SB_URL,SB_KEY);
+    sb.auth.onAuthStateChange((ev,s)=>{
+      user=s?s.user:null;
+      if(user) setTimeout(loadProfile,0); else { prof=null; paint(); }
+    });
+  }catch(e){ down=true; }
+}
+if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',init); else init();
+return {version:VERSION,label,open:openDlg,user:()=>user,profile:()=>prof,client:()=>sb,ready};
+})();
+</script>
 <script>
 window.MoveRecorder=(()=>{
 const SCHEMA='iron-meridian-log/2';
@@ -1366,7 +1475,7 @@ function showSetup(){
   const o = $('#overlay'); o.hidden = false; $('#dlg').classList.remove('wide'); $('#resBtn').hidden = true; $('#sqBtn').hidden = true;
   const gs = idxGet();
   const saved = gs.length ? `<p><b>Saved games</b> (autosaved in this browser)</p><div class="saved">${gs.map(x => `<div class="srow"><span><b>Game ${x.n}</b> · ${x.mapName} · ${x.opp+1} players · round ${x.round} · ${x.status === 'finished' ? x.result : 'in progress'}</span><span class="row"><button class="btn" data-resume="${x.id}">${x.status === 'finished' ? 'Open results' : 'Resume'}</button><button class="btn ghost" data-del="${x.id}">Delete</button></span></div>`).join('')}</div><div class="row"><button class="btn ghost" data-xlsx="1">Download all games (.xlsx, one tab per game)</button></div><p><b>New game</b></p>` : '';
-  $('#dlg').innerHTML = `<h2>Iron Meridian</h2>${saved}
+  $('#dlg').innerHTML = `<h2>Iron Meridian</h2><div class="row"><button class="btn ghost" type="button" data-acct="1">${window.IMAuth ? window.IMAuth.label() : 'Account'}</button></div>${saved}
     <p>Choose a map, then your opposition.</p>
     <div class="seg" role="group" aria-label="Map">${Object.keys(MAPS).map(k => `<button class="btn" type="button" data-pickmap="${k}" aria-pressed="${k===curMap}">${MAPS[k].short}</button>`).join('')}</div>
     <p>${MAPS[curMap].blurb}</p>
@@ -1467,6 +1576,7 @@ $('#overlay').addEventListener('input', e => { if (e.target.id === 'seedIn') UI.
 $('#manBtn').addEventListener('click', () => showManual());
 $('#overlay').addEventListener('click', e => {
   const t = x => e.target.closest(x);
+  if (t('[data-acct]')) return window.IMAuth && window.IMAuth.open();
   if (t('[data-resume]')) return resumeGame(t('[data-resume]').getAttribute('data-resume'));
   if (t('[data-del]')){ const b = t('[data-del]'); if (!b.dataset.armed){ b.dataset.armed = '1'; b.textContent = 'Really delete?'; return; } deleteGame(b.getAttribute('data-del')); return render(); }
   if (t('[data-xlsx]')){ const m = $('#dlmsg'); m.textContent = 'Building workbook...'; exportWorkbook().then(r => { m.textContent = r.msg; }); return; }
